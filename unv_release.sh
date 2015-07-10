@@ -33,7 +33,7 @@ cd win32
 cmake -DBUILD_CLIENT=ON -DBUILD_GAME_NATIVE_EXE=OFF -DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -D BUILD_GAME_NACL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/cross-toolchain-mingw32.cmake ..
 make -j10
 cp $MINGW32_DIR/{libgcc_s_sjlj-1.dll,libstdc++-6.dll,libwinpthread-1.dll} .
-zip -9 win32 *.exe *.dll
+zip -9 win32 *.exe *.dll *.nexe
 cd ..
 
 # Build Win64
@@ -45,4 +45,5 @@ cd win64
 cmake -DBUILD_CLIENT=ON -DBUILD_GAME_NATIVE_EXE=OFF -DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -D BUILD_GAME_NACL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/cross-toolchain-mingw64.cmake ..
 make -j10
 cp $MINGW64_DIR/{libgcc_s_seh-1.dll,libstdc++-6.dll,libwinpthread-1.dll} .
+zip -9 win64 *.exe *.dll *.nexe
 cd ..
