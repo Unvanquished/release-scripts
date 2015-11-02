@@ -1,4 +1,9 @@
 #!/bin/bash
+
+set -x
+set -v
+set -e
+
 OLDPWD=`pwd`;
 MINGW32_DIR="/usr/i686-w64-mingw32/bin"
 MINGW64_DIR="/usr/x86_64-w64-mingw32/bin"
