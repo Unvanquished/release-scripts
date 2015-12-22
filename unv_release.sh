@@ -35,8 +35,14 @@ if [ -e win32 ]; then
 fi
 mkdir win32
 cd win32
-cmake -DBUILD_CLIENT=ON -DBUILD_GAME_NATIVE_EXE=OFF -DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -D BUILD_GAME_NACL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=daemon/cmake/cross-toolchain-mingw32.cmake ..
+cmake -DBUILD_CLIENT=ON -DBUILD_GAME_NATIVE_EXE=OFF -DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF -DUSE_BREAKPAD=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_TOOLCHAIN_FILE=daemon/cmake/cross-toolchain-mingw32.cmake ..
 make -j10
+
+for f in daemon*.exe ; do
+	$MINGW32_DIR/objcopy --only-keep-debug $f $f.debug
+	$MINGW32_DIR/objcopy --strip-debug $f
+done
+
 cp $MINGW32_DIR/{libgcc_s_sjlj-1.dll,libstdc++-6.dll,libwinpthread-1.dll} .
 zip -9 win32 *.exe *.dll *.nexe
 cd ..
@@ -47,8 +53,14 @@ if [ -e win64 ]; then
 fi
 mkdir win64
 cd win64
-cmake -DBUILD_CLIENT=ON -DBUILD_GAME_NATIVE_EXE=OFF -DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -D BUILD_GAME_NACL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=daemon/cmake/cross-toolchain-mingw64.cmake ..
+cmake -DBUILD_CLIENT=ON -DBUILD_GAME_NATIVE_EXE=OFF -DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF -DUSE_BREAKPAD=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_TOOLCHAIN_FILE=daemon/cmake/cross-toolchain-mingw64.cmake ..
 make -j10
+
+for f in daemon*.exe ; do
+	$MINGW64_DIR/objcopy --only-keep-debug $f $f.debug
+	$MINGW64_DIR/objcopy --strip-debug $f
+done
+
 cp $MINGW64_DIR/{libgcc_s_seh-1.dll,libstdc++-6.dll,libwinpthread-1.dll} .
 zip -9 win64 *.exe *.dll *.nexe
 cd ..
