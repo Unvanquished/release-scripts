@@ -51,7 +51,7 @@ if [ -e symbols ]; then
 	rm -rf symbols
 fi
 
-# # Build VMs
+# Build VMs
 if [ -e rel ]; then
 	rm -rf rel
 fi
@@ -82,7 +82,7 @@ for f in daemon*.exe; do
 	dump_syms_win $f ../symbols
 	i686-w64-mingw32-strip $f
 done
-
+i686-w64-mingw32-strip crash_server.exe
 zip -9 win32 *.exe *.dll *.nexe
 cd ..
 
@@ -99,5 +99,6 @@ for f in daemon*.exe; do
 	dump_syms_win $f ../symbols
 	x86_64-w64-mingw32-strip $f
 done
+x86_64-w64-mingw32-strip crash_server.exe
 zip -9 win64 *.exe *.dll *.nexe
 cd ..
