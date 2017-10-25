@@ -1,0 +1,738 @@
+#! /usr/bin/env bash
+
+# ===========================================================================
+#
+# Unvanquished BSD Source Code
+# Copyright (c) 2017 Unvanquished Developers
+# All rights reserved
+#
+# This file is part of the Unvanquished BSD Source Code (Unvanquished Source Code).
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the Unvanquished developers nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL DAEMON DEVELOPERS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# ===========================================================================
+
+
+# exit in case of failure
+set -e
+
+throwError () {
+	local error_keyword="${1}"
+	local error_message="${2}"
+	local error_code
+
+	case "${error_keyword}" in
+		'BADREQUEST')
+			error_code='400'
+			;;
+		'INTERNAL')
+			error_code='500'
+			;;
+		'NOTIMPLEMENTED')
+			error_code='501'
+			;;
+	esac
+
+	printf 'ERROR %s: %s\n' "${error_keyword}" "${error_message}" >&2
+	exit "${error_code}"
+}
+
+printHelp () {
+	local prog_name="$(basename "${0}")"
+	local tab="$(printf '\t')"
+
+	cat <<-EOF
+	${prog_name}: a tool to build game for release purpose.
+
+	Usage:
+
+	${tab}${prog_name} [option] <target>
+
+	The script must be called within game source directory,
+	but can be called from everywhere in source directory.
+
+	Option can be:
+
+	${tab}-j<NUMBER>
+	${tab}${tab}with NUMBER the number of parallel compilation jobs
+
+	${tab}-p
+	${tab}${tab}build multiple targets at once in parallel
+
+	${tab}-v
+	${tav}${tab}write package version strings
+
+	Target can be:
+
+	${tab}vm
+	${tab}${tab}build virtual machine
+
+	${tab}linux-i686
+	${tab}${tab}build linux x86 engine
+
+	${tab}linux-amd64
+	${tab}${tab}build linux x86_64 engine
+
+	${tab}macos-amd64
+	${tab}${tab}build mac x86_64 engine (incomplete)
+
+	${tab}windows-i686
+	${tab}${tab}build windows x86 engine (incomplete)
+
+	${tab}windows-amd64
+	${tab}${tab}build windows x86_64 engine (incomplete)
+
+	Example:
+
+	${tab}${prog_name} vm linux-amd64
+
+	EOF
+
+	exit
+}
+
+getUserName () {
+	whoami \
+	| tr '[:upper:]' '[:lower:]' \
+	| tr -d '[:blank:]' \
+	| tr -d '[:punct:]' \
+	| cut -c'1-10'
+}
+
+getBinPath () {
+	local system_windows="${1}"
+	local bin_name="${2}"
+
+	if "${system_windows}"
+	then
+		echo "${bin_name}.exe"
+	else
+		echo "${bin_name}"
+	fi
+}
+
+dumpSymbols () {
+	local dumpsyms_bin="${1}"
+	local symbol_dir="${2}"
+	local exec_file="${3}"
+
+	local temp_file="$(mktemp)"
+
+	"${dumpsyms_bin}" "${exec_file}" > "${temp_file}"
+
+	local symbol_basename="$(head -n'1' "${temp_file}" | cut -f'5' -d' ')"
+
+	local build_id="$(head -n'1' "${temp_file}" | cut -f'4' -d' ')"
+
+	local exec_symbol_dir="${symbol_dir}/${symbol_basename}/${build_id}"
+
+	mkdir -pv "${exec_symbol_dir}"
+
+	mv "${temp_file}" "${exec_symbol_dir}/${symbol_basename}.sym"
+}
+
+findDll () {
+	local mingw_arch="${1}"
+	local dll_name="${2}"
+
+	find '/usr' -name "${dll_name}" | grep "${mingw_arch}" | head -n'1'
+}
+
+cleanSymbols () {
+	local symbol_dir="${1}"
+	local symbol_archive_filename="${2}"
+
+	if [ -e "${symbol_dir}" ]
+	then
+		find "${symbol_dir}" -type f -name '*.sym' -exec rm -v {} \;
+		find "${symbol_dir}" -depth -type d -exec rmdir -v {} \;
+	fi
+
+	if [ -f "${symbol_archive_filename}" ]
+	then
+		rm "${symbol_archive_filename}"
+	fi
+}
+
+cleanBinaries () {
+	local system_windows="${1}"
+	local target_build_dir="${2}"
+	local content_dir="${3}"
+	local bin_list="${4}"
+
+	for bin_filename in ${bin_list}
+	do
+		bin_path="$(getBinPath "${system_windows}" "${target_build_dir}/${bin_filename}")"
+		engine_bin_path="$(getBinPath "${system_windows}" "${content_dir}/${bin_filename}")"
+		if [ -f "${bin_path}" ]
+		then
+			rm "${bin_path}"
+		fi
+
+		if [ -f "${engine_bin_path}" ]
+		then
+			rm "${engine_bin_path}"
+		fi
+	done
+
+	if [ -d "${content_dir}" ]
+	then
+		rmdir "${content_dir}"
+	fi
+}
+
+cleanEngineBuildDir () {
+	local content_dir="${1}"
+
+	if [ -e "${content_dir}" ]
+	then
+		find "${content_dir}" -type f -exec rm -v {} \;
+		find "${content_dir}" -depth -type d -exec rmdir -v {} \;
+	fi
+}
+
+cleanVmBuildDir () {
+	local content_dir="${1}"
+	local symbol_archive_basename="${2}"
+
+	if [ -e "${content_dir}" ]
+	then
+		find "${content_dir}" -type f -name '?game-*.nexe' -exec rm -v {} \;
+		find "${content_dir}" -type f -name "${symbol_archive_basename}.*" -exec rm -v {} \;
+		find "${content_dir}" -depth -type d -exec rmdir -v {} \;
+	fi
+}
+
+package () {
+	local archive_format="${1}"
+	local archive_filename="${2}"
+	local content_dir="${3}"
+
+	(
+		cd "${content_dir}"
+		if [ -f "${archive_filename}" ]
+		then
+			rm -v "${archive_filename}"
+		fi
+
+		7z -mx='9' -t"${archive_format}" a "${archive_filename}" .
+	)
+}
+
+build () {
+	local job_count="${1}"
+	local write_version_string="${2}"
+	local root_dir="${3}"
+	local target="${4}"
+
+	local symbol_archive_basename='symbols'
+	local vmpak_archive_basename=''
+	local engine_archive_basename=''
+
+	local engine_archive_format='zip'
+	local symbol_archive_format='7z'
+	local vmpak_archive_format='zip'
+	local vmpak_archive_extension='dpk'
+
+	local build_dir="${root_dir}/build"
+	local release_dir="${build_dir}/release"
+
+	local vm_kind_list='cgame sgame'
+	local vm_arch_list='x86 x86_64'
+	local main_nexe='main.nexe'
+
+	local engine_file_list=''
+	local engine_bin_list='daemon daemonded daemon-tty crash_server nacl_loader'
+	local engine_extra_bin_list=''
+
+	local build_vm='false'
+	local build_engine='false'
+
+	local system_linux='false'
+	local system_macos='false'
+	local system_windows='false'
+
+	local arch_amd64='false'
+	local arch_i686='false'
+
+	local breakpad_host_system=''
+	local host_linux='false'
+	local host_mac='false'
+	local host_windows='false'
+
+	local mingw_arch_prefix=''
+
+	case "${target}" in
+		'vm')
+			build_vm='true'
+			;;
+		'linux-'*)
+			build_engine='true'
+			engine_extra_bin_list="${engine_extra_bin_list} nacl_helper_bootstrap"
+			system_linux='true'
+			;;
+		'macos-'*)
+			build_engine='true'
+			system_macos='true'
+			;;
+		'windows-'*)
+			build_engine='true'
+			engine_file_list="${engine_file_list} glew32.dll libcurl-4.dll OpenAL32.dll SDL2.dll zlib1.dll"
+			system_windows='true'
+			;;
+	esac
+
+	case "${target}" in
+		*'-amd64')
+			arch_amd64='true'
+			engine_file_list="${engine_file_list} irt_core-x86_64.nexe"
+			;;
+		*'-i686')
+			arch_i686='true'
+			engine_file_list="${engine_file_list} irt_core-x86.nexe"
+			;;
+	esac
+
+	local target_root_dir="${build_dir}/target"
+	local target_build_dir="${target_root_dir}/${target}"
+	local content_dir="${target_build_dir}/content"
+	local symbol_dir="${target_build_dir}/${symbol_archive_basename}"
+	local symbol_archive_filename="${target_build_dir}/${symbol_archive_basename}.${symbol_archive_format}"
+
+	local uname_system="$(uname -s)"
+	case "${uname_system}" in
+	    'Linux'*)
+			breakpad_host_system='linux'
+			host_linux='true'
+			;;
+	    'Darwin'*)
+			breakpad_host_system='mac'
+			host_mac='true'
+			;;
+		'CYGWIN'*|'MINGW'*)
+			breakpad_host_system='windows'
+			host_windows='true'
+			;;
+	    *)
+			throwError NOTIMPLEMENTED "unknown system: ${uname_system}"
+			;;
+	esac
+
+	git_last_commit="$(git rev-list HEAD | head -n 1)"
+	git_last_commit_short="$(git rev-list HEAD | head -n 1 | cut -c1-7)"
+	git_ref="$(git describe --tags --match 'v*' | cut -c2-)"
+	git_last_tag="$(git describe --tags --match 'v*' | cut -f1 -d'-' | cut -c2-)"
+	git_last_date="$(date --date="@$(git log -1 '--pretty=format:%ct')" -u '+%Y%m%d-%H%M%S')"
+
+	if [ "${git_ref}" = "${git_last_tag}" ]
+	then
+		build_version="${git_ref}"
+	else
+		build_version="${git_last_tag}+${git_last_date}+${git_last_commit_short}+$(getUserName)"
+	fi
+
+	if "${write_version_string}"
+	then
+		vmpak_version_string="_${build_version}"
+		engine_version_string="_${build_version}"
+	else
+		vmpak_version_string='_0'
+		engine_version_string=''
+	fi
+
+	if [ -z "${job_count}" ]
+	then
+		if command -v 'nproc' >/dev/null
+		then
+			job_count="$(nproc)"
+		elif command -v 'sysctl' >/dev/null
+		then
+			job_count="$(sysctl -n 'hw.ncpu')"
+		else
+			job_count='4'
+		fi
+	fi
+
+	mkdir -pv "${build_dir}"
+	mkdir -pv "${target_build_dir}"
+	mkdir -pv "${release_dir}"
+
+	if "${build_vm}" || "${build_engine}"
+	then
+		# clean-up before building
+
+		if [ -f "${target_build_dir}/Makefile" ]
+		then
+			cmake --build "${target_build_dir}" -- -j"${job_count}" clean \
+			|| true
+
+			cmake -H"${root_dir}" -B"${target_build_dir}" -U'*' 2>/dev/null >/dev/null \
+			|| true
+		fi
+	fi
+
+	local cmake_opts=''
+	local cmake_cflags=''
+
+	if "${system_macos}"
+	then
+		PATH="${PATH}:/Applications/CMake.app/Contents/bin"
+		cmake_opts='-DCMAKE_OSX_DEPLOYMENT_TARGET=10.7'
+	fi
+
+	if "${system_macos}" && "${arch_amd64}"
+	then
+		cmake_opts="${cmake_opts} -DCMAKE_OSX_ARCHITECTURES=x86_64"
+	fi
+
+	if "${build_vm}"
+	then
+		vmpak_archive_basename='vm'
+		make_targets='nacl-vms'
+		cmake_opts="${cmake_opts} -DBUILD_GAME_NACL=ON -DBUILD_GAME_NACL_NEXE=ON -DBUILD_CGAME=ON -DBUILD_SGAME=ON"
+	fi
+
+	if "${build_engine}"
+	then
+		engine_archive_basename="${target}"
+		make_targets='client server ttyclient crash_server'
+		cmake_opts="${cmake_opts} -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF"
+
+		if ${system_linux}
+		then
+			if "${arch_i686}"
+			then
+				cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-linux32.cmake"
+			fi
+		fi
+
+		if "${system_windows}"
+		then
+			if "${arch_i686}"
+			then
+				special_dll='libgcc_s_sjlj-1.dll'
+			else
+				special_dll='libgcc_s_seh-1.dll'
+			fi
+
+			extra_dll_list="${special_dll} libstdc++-6.dll libwinpthread-1.dll"
+			engine_extra_bin_list="${engine_extra_bin_list} ${extra_dll_list}"
+
+			# those paths are distro-centric
+			# cp -av "/usr/${mingw_arch_prefix}-w64-mingw32/lib/libwinpthread-1.dll" "${target_build_dir}/"
+			# cp -av "/usr/lib/gcc/${mingw_arch_prefix}-w64-mingw32/7.3-posix/libstdc++-6.dll" "${target_build_dir}/"
+			# cp -av "/usr/lib/gcc/${mingw_arch_prefix}-w64-mingw32/7.3-posix/${special_dll}" "${target_build_dir}/"
+			for dll_name in ${extra_dll_list}
+			do
+				cp -av "$(findDll "${mingw_arch_prefix}" "${dll_name}")" "${target_build_dir}/"
+			done
+		fi
+
+		if "${system_windows}" && ! "${host_windows}"
+		then
+			if "${arch_i686}"
+			then
+				bitness='32'
+				mingw_arch_prefix='i686'
+			else
+				bitness='64'
+				mingw_arch_prefix='x86_64'
+			fi
+
+			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-mingw${bitness}.cmake"
+			# unused
+			# cmake_opts="${cmake_opts} -DPKG_CONFIG_EXECUTABLE=${mingw_arch_prefix}-w64-mingw32-pkg-config"
+		fi
+	fi
+
+	if "${build_vm}"
+	then
+		# configuration
+
+		cmake -H"${root_dir}" \
+			-B"${target_build_dir}" \
+			-G"Unix Makefiles" \
+			-D'USE_BREAKPAD=ON' \
+			-D'CMAKE_BUILD_TYPE=RelWithDebInfo' \
+			${cmake_opts} \
+		|| throwError INTERNAL "${target} cmake failed"
+	fi
+
+	if "${build_engine}"
+	then
+		# configuration
+
+		cmake -H"${root_dir}" \
+			-B"${target_build_dir}" \
+			-G"Unix Makefiles" \
+			-D'USE_BREAKPAD=ON' \
+			-D'CMAKE_BUILD_TYPE=RelWithDebInfo' \
+			-D"CMAKE_C_FLAGS=${cmake_cflags}" \
+			-D"CMAKE_CXX_FLAGS=${cmake_cflags}" \
+			-D"CMAKE_EXE_LINKER_FLAGS=${cmake_cflags}" \
+			${cmake_opts} \
+		|| throwError INTERNAL "${target} cmake failed"
+	fi
+
+	if "${build_vm}" || "${build_engine}"
+	then
+		daemon_dir="$(cmake -H"${root_dir}" -B"${target_build_dir}" -LH | grep '^DAEMON_DIR:' | sed -e 's/[^=]*=//')"
+	fi
+
+	if "${build_vm}"
+	then
+		# build vm
+
+		cmake --build "${target_build_dir}" -- -j"${job_count}" ${make_targets} \
+		|| throwError INTERNAL "${target} build failed"
+	fi
+
+	if "${build_engine}"
+	then
+		cleanBinaries "${system_windows}" "${target_build_dir}" "${content_dir}" "${engine_bin_list} ${engine_extra_bin_list} ${engine_file_list}"
+
+		# build engine
+
+		cmake --build "${target_build_dir}" -- -j"${job_count}" ${make_targets} \
+		|| throwError INTERNAL "${target} build failed"
+	fi
+
+	if "${build_vm}" || "${build_engine}"
+	then
+		# build breakpad
+
+		local breakpad_dir="${daemon_dir}/libs/breakpad"
+		local dumpsyms_bin="$(getBinPath "${host_windows}" "${breakpad_dir}/src/tools/${breakpad_host_system}/dump_syms/dump_syms")"
+
+		if ! [ -d "${breakpad_dir}" ]
+		then
+			throwError INTERNAL "breakpad dir missing: ${breakpad_dir}"
+		fi
+
+		if ! [ -f "${dumpsyms_bin}" ]
+		then
+			(
+				cd "${breakpad_dir}"
+
+				./configure \
+				|| throwError INTERNAL 'breakpad configure failed'
+			)
+
+			make -C"${breakpad_dir}" clean \
+			|| true
+
+			make -j"${job_count}" -C"${breakpad_dir}" \
+			|| throwError INTERNAL 'breakpad build failed'
+		fi
+	fi
+
+	if "${build_vm}"
+	then
+		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
+		cleanVmBuildDir "${content_dir}" "${symbol_archive_basename}"
+
+		# extract vm symbols
+
+		for vm in ${vm_kind_list}
+		do
+			for arch in ${vm_arch_list}
+			do
+				(
+					cd "${target_build_dir}"
+
+					local vm_file="${vm}-${arch}.nexe"
+					local stripped_vm_file="${vm}-${arch}-stripped.nexe"
+
+					printf 'extracting symbols from %s\n' "${vm_file}"
+
+					if ! [ -f "${vm_file}" ]
+					then
+						throwError INTERNAL "missing: ${vm_file}"
+					fi
+
+					if [ -f "${main_nexe}" ]
+					then
+						rm "${main_nexe}"
+					fi
+
+					ln -s "${vm_file}" 'main.nexe'
+
+					dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${main_nexe}"
+
+					mkdir -pv "${content_dir}"
+
+					cp -v "${stripped_vm_file}" "${content_dir}/${vm_file}"
+				)
+			done
+		done
+
+		# compress vm symbols
+
+		package "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
+
+		cp -v "${symbol_archive_filename}" "${content_dir}/${symbol_archive_basename}.${symbol_archive_format}"
+
+		# make vm package
+
+		vmpak_archive_filename="${release_dir}/${vmpak_archive_basename}${vmpak_version_string}.${vmpak_archive_extension}"
+
+		if [ -f "${vmpak_archive_filename}" ]
+		then
+			rm -v "${vmpak_archive_filename}"
+		fi
+
+		package "${vmpak_archive_format}" "${vmpak_archive_filename}" "${content_dir}"
+
+		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
+		cleanVmBuildDir "${content_dir}" "${symbol_archive_basename}"
+	fi
+
+	if "${build_engine}"
+	then
+		local bin_path
+		local engine_bin_path
+
+		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
+		cleanEngineBuildDir "${content_dir}"
+
+		# extract engine symbols
+
+		mkdir -pv "${content_dir}"
+
+		for bin in ${engine_bin_list}
+		do
+			bin_path="$(getBinPath "${system_windows}" "${target_build_dir}/${bin}")"
+			engine_bin_path="$(getBinPath "${system_windows}" "${content_dir}/${bin}")"
+
+			cp -v "${bin_path}" "${engine_bin_path}"
+
+			printf 'extracting symbols from %s\n' "${engine_bin_path}"
+			dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${engine_bin_path}"
+
+			if "${system_windows}"
+			then
+				striper='i686-w64-mingw32-strip'
+			else
+				striper='strip'
+			fi
+
+			"${striper}" "${engine_bin_path}"
+		done
+
+		for bin in ${engine_extra_bin_list}
+		do
+			bin_path="$(getBinPath "${system_windows}" "${target_build_dir}/${bin}")"
+			engine_bin_path="$(getBinPath "${system_windows}" "${content_dir}/${bin}")"
+			cp -v "${bin_path}" "${engine_bin_path}"
+			strip "${engine_bin_path}"
+		done
+
+		for file in ${engine_file_list}
+		do
+			cp -v "${target_build_dir}/${file}" "${content_dir}/${file}"
+		done
+
+		# compress engine symbols
+
+		package "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
+
+		cp -v "${symbol_archive_filename}" "${content_dir}/${symbol_archive_basename}-${target}.${symbol_archive_format}"
+
+		# make engine archive
+
+		engine_archive_filename="${release_dir}/${engine_archive_basename}${engine_version_string}.${engine_archive_format}"
+
+		if [ -f "${engine_archive_filename}" ]
+		then
+			rm -v "${engine_archive_filename}"
+		fi
+
+		package "${engine_archive_format}" "${engine_archive_filename}" "${content_dir}"
+
+		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
+		cleanEngineBuildDir "${content_dir}"
+	fi
+}
+
+root_dir="$(git rev-parse --show-toplevel)"
+
+[ -f "${root_dir}/src/cgame/cg_main.cpp" ] || throwError INTERNAL "must be called from game source tree"
+
+[ -z "${1}" ] && throwError BADREQUEST 'missing target'
+
+job_count=''
+parallel_target='false'
+write_version_string='false'
+target_list=''
+
+while ! [ -z "${1}" ]
+do
+	case "${1}" in
+	'vm'|'linux-amd64'|'linux-i686'|'macos-amd64'|'windows-amd64'|'windows-i686')
+			target_list="${target_list} ${1}"
+			shift
+			;;
+		'macos-i686')
+			throwError NOTIMPLEMENTED "unsupported target: ${1}"
+			;;
+		'-d')
+			set -x
+			shift
+			;;
+		'-j'*)
+			job_count="${1:2}"
+			shift
+			;;
+		'-p')
+			parallel_target='true'
+			shift
+			;;
+		'-v')
+			write_version_string='true'
+			shift
+			;;
+		'-h'|'--help')
+			printHelp
+			;;
+		'-'*)
+			throwError BADREQUEST "unknown option: ${1}"
+			;;
+		*)
+			throwError BADREQUEST "unknown target: ${1}"
+			;;
+	esac
+done
+
+for target in ${target_list}
+do
+	if "${parallel_target}"
+	then
+		build "${job_count}" "${write_version_string}" "${root_dir}" "${target}" &
+	else
+		build "${job_count}" "${write_version_string}" "${root_dir}" "${target}" &
+	fi
+
+	wait
+done
+
+#EOF
