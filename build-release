@@ -35,13 +35,13 @@ throwError () {
 
 	case "${error_keyword}" in
 		'BADREQUEST')
-			error_code='400'
+			error_code=2
 			;;
 		'INTERNAL')
-			error_code='500'
+			error_code=3
 			;;
 		'NOTIMPLEMENTED')
-			error_code='501'
+			error_code=4
 			;;
 	esac
 
