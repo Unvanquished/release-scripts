@@ -70,6 +70,7 @@ printHelp () {
 
 	${tab}-p
 	${tab}${tab}build multiple targets at once in parallel
+	${tab}${tab}beware: return code will be inaccurate
 
 	${tab}-v
 	${tav}${tab}write package version strings
@@ -721,10 +722,9 @@ do
 	then
 		build "${job_count}" "${write_version_string}" "${root_dir}" "${target}" &
 	else
-		build "${job_count}" "${write_version_string}" "${root_dir}" "${target}" &
+		build "${job_count}" "${write_version_string}" "${root_dir}" "${target}"
 	fi
-
-	wait
 done
+wait
 
 #EOF
