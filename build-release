@@ -264,11 +264,11 @@ build () {
 	local system_linux='false'
 	local system_macos='false'
 	local system_windows='false'
+	local dumpsyms_relpath=''
 
 	local arch_amd64='false'
 	local arch_i686='false'
 
-	local breakpad_host_system=''
 	local host_linux='false'
 	local host_mac='false'
 	local host_windows='false'
@@ -278,20 +278,24 @@ build () {
 	case "${target}" in
 		'vm')
 			build_vm='true'
+			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
 		'linux-'*)
 			build_engine='true'
 			engine_extra_bin_list="${engine_extra_bin_list} nacl_helper_bootstrap"
 			system_linux='true'
+			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
 		'macos-'*)
 			build_engine='true'
 			system_macos='true'
+			dumpsyms_relpath=mac/dump_syms/dump_syms_mac
 			;;
 		'windows-'*)
 			build_engine='true'
 			engine_file_list="${engine_file_list} glew32.dll libcurl-4.dll OpenAL32.dll SDL2.dll zlib1.dll"
 			system_windows='true'
+			dumpsyms_relpath=windows/dump_syms_dwarf/dump_syms
 			;;
 	esac
 
@@ -315,15 +319,12 @@ build () {
 	local uname_system="$(uname -s)"
 	case "${uname_system}" in
 		'Linux'*)
-			breakpad_host_system='linux'
 			host_linux='true'
 			;;
 		'Darwin'*)
-			breakpad_host_system='mac'
 			host_mac='true'
 			;;
 		'CYGWIN'*|'MINGW'*)
-			breakpad_host_system='windows'
 			host_windows='true'
 			;;
 		*)
@@ -516,7 +517,7 @@ build () {
 		# build breakpad
 
 		local breakpad_dir="${daemon_dir}/libs/breakpad"
-		local dumpsyms_bin="$(getBinPath "${host_windows}" "${breakpad_dir}/src/tools/${breakpad_host_system}/dump_syms/dump_syms")"
+		local dumpsyms_bin="$(getBinPath ${host_windows} ${breakpad_dir}/src/tools/${dumpsyms_relpath})"
 
 		if ! [ -d "${breakpad_dir}" ]
 		then
