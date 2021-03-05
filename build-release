@@ -148,7 +148,8 @@ findDll () {
 	local mingw_arch="${1}"
 	local dll_name="${2}"
 
-	find '/usr' -name "${dll_name}" | grep "${mingw_arch}" | head -n'1'
+	find '/usr' -name "${dll_name}" | grep --max-count=1 "${mingw_arch}" \
+	|| throwError INTERNAL "couldn't find DLL ${dll_name}"
 }
 
 cleanSymbols () {
@@ -430,7 +431,8 @@ build () {
 			# cp -av "/usr/lib/gcc/${mingw_arch_prefix}-w64-mingw32/7.3-posix/${special_dll}" "${target_build_dir}/"
 			for dll_name in ${extra_dll_list}
 			do
-				cp -av "$(findDll "${mingw_arch_prefix}" "${dll_name}")" "${target_build_dir}/"
+				dll_location="$(findDll "${mingw_arch_prefix}" "${dll_name}")"
+				cp -av "${dll_location}" "${target_build_dir}/"
 			done
 		fi
 
