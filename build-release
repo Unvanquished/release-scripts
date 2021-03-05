@@ -367,23 +367,16 @@ build () {
 		fi
 	fi
 
-	mkdir -pv "${build_dir}"
+	if [ -d "${target_build_dir}" ]
+	then
+		echo "Removing '${target_build_dir}' and contents"
+		# Safe w.r.t. symlinks, as long as you don't put a trailing slash:
+		# https://superuser.com/questions/382314/does-rm-rf-follow-symbolic-links
+		rm -r "${target_build_dir}"
+	fi
+
 	mkdir -pv "${target_build_dir}"
 	mkdir -pv "${release_dir}"
-
-	if "${build_vm}" || "${build_engine}"
-	then
-		# clean-up before building
-
-		if [ -f "${target_build_dir}/Makefile" ]
-		then
-			cmake --build "${target_build_dir}" -- -j"${job_count}" clean \
-			|| true
-
-			cmake -H"${root_dir}" -B"${target_build_dir}" -U'*' 2>/dev/null >/dev/null \
-			|| true
-		fi
-	fi
 
 	local cmake_opts=''
 	local cmake_cflags=''
@@ -504,8 +497,6 @@ build () {
 
 	if "${build_engine}"
 	then
-		cleanBinaries "${system_windows}" "${target_build_dir}" "${content_dir}" "${engine_bin_list} ${engine_extra_bin_list} ${engine_file_list}"
-
 		# build engine
 
 		cmake --build "${target_build_dir}" -- -j"${job_count}" \
@@ -544,7 +535,6 @@ build () {
 	if "${build_vm}"
 	then
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
-		cleanVmBuildDir "${content_dir}" "${symbol_archive_basename}"
 
 		# extract vm symbols
 
@@ -608,7 +598,6 @@ build () {
 		local engine_bin_path
 
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
-		cleanEngineBuildDir "${content_dir}"
 
 		# extract engine symbols
 
