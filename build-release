@@ -440,6 +440,7 @@ build () {
 			done
 		fi
 
+		local strip='strip'
 		if "${system_windows}" && ! "${host_windows}"
 		then
 			if "${arch_i686}"
@@ -451,6 +452,7 @@ build () {
 				mingw_arch_prefix='x86_64'
 			fi
 
+			strip="${mingw_arch_prefix}-w64-mingw32-strip"
 			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-mingw${bitness}.cmake"
 			# unused
 			# cmake_opts="${cmake_opts} -DPKG_CONFIG_EXECUTABLE=${mingw_arch_prefix}-w64-mingw32-pkg-config"
@@ -620,15 +622,7 @@ build () {
 
 			printf 'extracting symbols from %s\n' "${engine_bin_path}"
 			dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${engine_bin_path}"
-
-			if "${system_windows}"
-			then
-				striper='i686-w64-mingw32-strip'
-			else
-				striper='strip'
-			fi
-
-			"${striper}" "${engine_bin_path}"
+			"${strip}" "${engine_bin_path}"
 		done
 
 		for bin in ${engine_extra_bin_list}
@@ -636,7 +630,7 @@ build () {
 			bin_path="$(getBinPath "${system_windows}" "${target_build_dir}/${bin}")"
 			engine_bin_path="$(getBinPath "${system_windows}" "${content_dir}/${bin}")"
 			cp -v "${bin_path}" "${engine_bin_path}"
-			strip "${engine_bin_path}"
+			"${strip}" "${engine_bin_path}"
 		done
 
 		for file in ${engine_file_list}
