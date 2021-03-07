@@ -27,6 +27,8 @@
 
 # exit in case of failure
 set -e
+# error on undefined variable
+set -u
 
 throwError () {
 	local error_keyword="${1}"
@@ -656,14 +658,14 @@ root_dir="$(git rev-parse --show-toplevel)"
 
 [ -f "${root_dir}/src/cgame/cg_main.cpp" ] || throwError INTERNAL "must be called from game source tree"
 
-[ -z "${1}" ] && throwError BADREQUEST 'missing target'
+[ -z "${1:-}" ] && throwError BADREQUEST 'missing target'
 
 job_count=''
 parallel_target='false'
 write_version_string='false'
 target_list=''
 
-while ! [ -z "${1}" ]
+while [ -n "${1:-}" ]
 do
 	case "${1}" in
 	'vm'|'linux-amd64'|'linux-i686'|'macos-amd64'|'windows-amd64'|'windows-i686')
