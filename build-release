@@ -258,8 +258,8 @@ build () {
 	local main_nexe='main.nexe'
 
 	local engine_file_list=''
-	local engine_bin_list='daemon daemonded daemon-tty crash_server nacl_loader'
-	local engine_extra_bin_list=''
+	local engine_strip_list=''
+	local engine_symbolize_list=''
 
 	local build_vm='false'
 	local build_engine='false'
@@ -285,7 +285,6 @@ build () {
 			;;
 		'linux-'*)
 			build_engine='true'
-			engine_extra_bin_list="${engine_extra_bin_list} nacl_helper_bootstrap"
 			system_linux='true'
 			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
@@ -296,7 +295,6 @@ build () {
 			;;
 		'windows-'*)
 			build_engine='true'
-			engine_file_list="${engine_file_list} glew32.dll libcurl-4.dll OpenAL32.dll SDL2.dll zlib1.dll"
 			system_windows='true'
 			dumpsyms_relpath=windows/dump_syms_dwarf/dump_syms
 			;;
@@ -387,7 +385,9 @@ build () {
 	if "${system_macos}"
 	then
 		PATH="${PATH}:/Applications/CMake.app/Contents/bin"
-		cmake_opts='-DCMAKE_OSX_DEPLOYMENT_TARGET=10.7'
+		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.7 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF"
+	else
+		cmake_opts="${cmake_opts} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_BREAKPAD=ON"
 	fi
 
 	if "${system_macos}" && "${arch_amd64}"
@@ -409,10 +409,19 @@ build () {
 		if ${system_linux}
 		then
 			cmake_opts="${cmake_opts} -DUSE_STATIC_LIBS=1 -DOpenGL_GL_PREFERENCE=LEGACY"
+			engine_file_list="${engine_file_list} daemon daemonded daemon-tty crash_server nacl_helper_bootstrap nacl_loader"
+			engine_symbolize_list='daemon daemonded daemon-tty'
+			engine_strip_list='daemon daemonded daemon-tty crash_server'
 			if "${arch_i686}"
 			then
 				cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-linux32.cmake"
 			fi
+		fi
+
+		if "${system_macos}"
+		then
+			engine_file_list="${engine_file_list} daemon daemonded daemon" # TODO add dylibs/frameworks/nacl loaders
+			# No Breakpad, hence no symbolize and strip steps
 		fi
 
 		if "${system_windows}"
@@ -425,7 +434,10 @@ build () {
 			fi
 
 			extra_dll_list="${special_dll} libstdc++-6.dll libwinpthread-1.dll"
-			engine_extra_bin_list="${engine_extra_bin_list} ${extra_dll_list}"
+			# DLLs are added to engine_file_list after building
+			engine_file_list="${engine_file_list} daemon.exe daemonded.exe daemon-tty.exe crash_server.exe nacl_loader.exe"
+			engine_symbolize_list='daemon.exe daemonded.exe daemon-tty.exe'
+			engine_strip_list='daemon.exe daemonded.exe daemon-tty.exe crash_server.exe'
 
 			# those paths are distro-centric
 			# cp -av "/usr/${mingw_arch_prefix}-w64-mingw32/lib/libwinpthread-1.dll" "${target_build_dir}/"
@@ -464,8 +476,6 @@ build () {
 		cmake -H"${root_dir}" \
 			-B"${target_build_dir}" \
 			-G"Unix Makefiles" \
-			-D'USE_BREAKPAD=ON' \
-			-D'CMAKE_BUILD_TYPE=RelWithDebInfo' \
 			${cmake_opts} \
 		|| throwError INTERNAL "${target} cmake failed"
 	fi
@@ -477,8 +487,6 @@ build () {
 		cmake -H"${root_dir}" \
 			-B"${target_build_dir}" \
 			-G"Unix Makefiles" \
-			-D'USE_BREAKPAD=ON' \
-			-D'CMAKE_BUILD_TYPE=RelWithDebInfo' \
 			-D"CMAKE_C_FLAGS=${cmake_cflags}" \
 			-D"CMAKE_CXX_FLAGS=${cmake_cflags}" \
 			-D"CMAKE_EXE_LINKER_FLAGS=${cmake_cflags}" \
@@ -505,6 +513,11 @@ build () {
 
 		cmake --build "${target_build_dir}" -- -j"${job_count}" \
 		|| throwError INTERNAL "${target} build failed"
+
+		if "${system_windows}"
+		then
+			engine_file_list="${engine_file_list} $(cd "${target_build_dir}" && ls *.dll)"
+		fi
 	fi
 
 	if "${build_vm}" || "${build_engine}"
@@ -607,29 +620,22 @@ build () {
 
 		mkdir -pv "${content_dir}"
 
-		for bin in ${engine_bin_list}
+		for bin in ${engine_symbolize_list}
 		do
-			bin_path="$(getBinPath "${system_windows}" "${target_build_dir}/${bin}")"
-			engine_bin_path="$(getBinPath "${system_windows}" "${content_dir}/${bin}")"
-
-			cp -v "${bin_path}" "${engine_bin_path}"
-
-			printf 'extracting symbols from %s\n' "${engine_bin_path}"
-			dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${engine_bin_path}"
-			"${strip}" "${engine_bin_path}"
-		done
-
-		for bin in ${engine_extra_bin_list}
-		do
-			bin_path="$(getBinPath "${system_windows}" "${target_build_dir}/${bin}")"
-			engine_bin_path="$(getBinPath "${system_windows}" "${content_dir}/${bin}")"
-			cp -v "${bin_path}" "${engine_bin_path}"
-			"${strip}" "${engine_bin_path}"
+			bin_path="${target_build_dir}/${bin}"
+			printf 'extracting symbols from %s\n' "${bin_path}"
+			dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${bin_path}"
 		done
 
 		for file in ${engine_file_list}
 		do
 			cp -v "${target_build_dir}/${file}" "${content_dir}/${file}"
+		done
+
+		for file in ${engine_strip_list}
+		do
+			echo "Stripping ${file}"
+			"${strip}" "${content_dir}/${file}"
 		done
 
 		# compress engine symbols
