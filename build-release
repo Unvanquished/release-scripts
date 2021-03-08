@@ -379,7 +379,7 @@ build () {
 	mkdir -pv "${target_build_dir}"
 	mkdir -pv "${release_dir}"
 
-	local cmake_opts=''
+	local cmake_opts='-DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_GAME_NATIVE_EXE=OFF'
 	local cmake_cflags=''
 
 	if "${system_macos}"
@@ -398,13 +398,13 @@ build () {
 	if "${build_vm}"
 	then
 		vmpak_archive_basename='vm'
-		cmake_opts="${cmake_opts} -DBUILD_GAME_NACL=ON -DBUILD_GAME_NACL_NEXE=ON -DBUILD_CGAME=ON -DBUILD_SGAME=ON"
+		cmake_opts="${cmake_opts} -DBUILD_GAME_NACL=ON -DBUILD_GAME_NACL_NEXE=ON -DBUILD_CGAME=ON -DBUILD_SGAME=ON -DBUILD_CLIENT=OFF -DBUILD_TTY_CLIENT=OFF -DBUILD_SERVER=OFF"
 	fi
 
 	if "${build_engine}"
 	then
 		engine_archive_basename="${target}"
-		cmake_opts="${cmake_opts} -DUSE_LTO=ON -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF -DBUILD_GAME_NACL_NEXE=OFF -DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_GAME_NATIVE_EXE=OFF -DBUILD_CGAME=OFF -DBUILD_SGAME=OFF"
+		cmake_opts="${cmake_opts} -DUSE_LTO=ON -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF -DBUILD_GAME_NACL_NEXE=OFF -DBUILD_CGAME=OFF -DBUILD_SGAME=OFF"
 
 		if ${system_linux}
 		then
