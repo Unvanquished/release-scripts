@@ -150,7 +150,8 @@ findDll () {
 	local mingw_arch="${1}"
 	local dll_name="${2}"
 
-	find '/usr' -name "${dll_name}" | grep --max-count=1 "${mingw_arch}" \
+	# HACK: sort to get posix flavor of libstdc++ before win32 flavor
+	find '/usr' -name "${dll_name}" -type f | sort | grep --max-count=1 "${mingw_arch}" \
 	|| throwError INTERNAL "couldn't find DLL ${dll_name}"
 }
 
@@ -405,6 +406,24 @@ build () {
 	then
 		engine_archive_basename="${target}"
 		cmake_opts="${cmake_opts} -DUSE_LTO=ON -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF -DBUILD_GAME_NACL_NEXE=OFF -DBUILD_CGAME=OFF -DBUILD_SGAME=OFF"
+
+		local strip='strip'
+		if "${system_windows}" && ! "${host_windows}"
+		then
+			if "${arch_i686}"
+			then
+				bitness='32'
+				mingw_arch_prefix='i686'
+			else
+				bitness='64'
+				mingw_arch_prefix='x86_64'
+			fi
+
+			strip="${mingw_arch_prefix}-w64-mingw32-strip"
+			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-mingw${bitness}.cmake"
+			# unused
+			# cmake_opts="${cmake_opts} -DPKG_CONFIG_EXECUTABLE=${mingw_arch_prefix}-w64-mingw32-pkg-config"
+		fi
 
 		if ${system_linux}
 		then
