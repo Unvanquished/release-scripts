@@ -1,0 +1,108 @@
+#! /usr/bin/env bash
+
+# ===========================================================================
+#
+# Copyright (c) 2021 Unvanquished Developers
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# ===========================================================================
+
+set -eu
+
+if [ $# != 1 ] || [ ! -d "$1" ]
+then
+	echo "Usage: $0 <release_dir>"
+	echo 'Creates a partial universal zip with whatever components have been built'
+	exit 1
+fi
+
+release_dir="$(sed -E 's!/+!/!g; s!(.)/$!\1!' <<< "$1")" # 7z chokes on extra slashes
+version='0' # TODO
+work_dir="${release_dir}/unizip_staging"
+content_dir="${work_dir}/unvanquished_${version}"
+
+extractSymbols () {
+	local archive="$1"
+	if symbol_archive=$(7z l "${archive}" | grep -oE 'symbol.*7z')
+	then
+		echo "extracting ${symbol_archive}"
+		7z x -o"${work_dir}" "${archive}" "${symbol_archive}" >/dev/null
+		7z x -o"${work_dir}/symbols" "${work_dir}/${symbol_archive}" >/dev/null
+		echo "deleting ${symbol_archive} from ${archive}"
+		7z d "${archive}" "${symbol_archive}" >/dev/null
+	fi
+}
+
+if [ -d "${work_dir}" ]
+then
+	rm -rv "${work_dir}"
+fi
+mkdir -v "${work_dir}"
+mkdir -v "${content_dir}"
+
+if cp --preserve=timestamps "$0" "${work_dir}/timestamp-test"
+then
+	alias cp='cp --preserve=timestamps'
+fi
+
+# Prepare pkg/
+mkdir -v "${content_dir}/pkg"
+for dpk in $(find "${release_dir}" -name '*.dpk')
+do
+	dest="${content_dir}/pkg/$(basename "${dpk}")"
+	cp -v "${dpk}" "${dest}"
+	extractSymbols "${dest}"
+done
+(
+	cd "${content_dir}/pkg"
+	if ls * >/dev/null
+	then
+		md5sum --binary -- * > md5sums
+	else
+		touch md5sums
+	fi
+)
+
+# Prepare <os>-<arch>.zip
+for os_zip in $(find "${release_dir}" -name '*.zip' | grep -E '/(windows|macos|linux)-[^/]*$')
+do
+	dest="${content_dir}/$(basename "${os_zip}")"
+	cp -v "${os_zip}" "${dest}"
+	extractSymbols "${dest}"
+done
+
+# Compress symbols
+(
+	cd "${work_dir}"
+	7z a -tzip -mx=9 -r "unvanquished_${version}/symbols_${version}.zip" symbols
+)
+
+# Create (partial) universal zip
+(
+	cd "${work_dir}"
+	if [ -f "../unvanquished_${version}.zip" ]
+	then
+		rm -v "../unvanquished_${version}.zip"
+	fi
+	# Even though almost all the contents are compressed already, it still saves some...
+	7z a -tzip -mx=9 -r "../unvanquished_${version}.zip" "unvanquished_${version}"
+)
+
+rm -rv "${work_dir}"
