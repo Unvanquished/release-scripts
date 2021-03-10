@@ -405,7 +405,7 @@ build () {
 	if "${build_engine}"
 	then
 		engine_archive_basename="${target}"
-		cmake_opts="${cmake_opts} -DUSE_LTO=ON -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF -DBUILD_GAME_NACL_NEXE=OFF -DBUILD_CGAME=OFF -DBUILD_SGAME=OFF"
+		cmake_opts="${cmake_opts} -DUSE_LTO=ON -DBUILD_CLIENT=ON -DBUILD_SERVER=ON -DBUILD_TTY_CLIENT=ON -DBUILD_GAME_NACL=OFF -DBUILD_GAME_NACL_NEXE=OFF -DBUILD_CGAME=OFF -DBUILD_SGAME=OFF -DUSE_HARDENING=1"
 
 		local strip='strip'
 		if "${system_windows}" && ! "${host_windows}"
@@ -452,7 +452,7 @@ build () {
 				special_dll='libgcc_s_seh-1.dll'
 			fi
 
-			extra_dll_list="${special_dll} libstdc++-6.dll libwinpthread-1.dll"
+			extra_dll_list="${special_dll} libstdc++-6.dll libwinpthread-1.dll libssp-0.dll"
 			# DLLs are added to engine_file_list after building
 			engine_file_list="${engine_file_list} daemon.exe daemonded.exe daemon-tty.exe crash_server.exe nacl_loader.exe"
 			engine_symbolize_list='daemon.exe daemonded.exe daemon-tty.exe'
