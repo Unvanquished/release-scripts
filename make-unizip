@@ -62,6 +62,8 @@ then
 	alias cp='cp --preserve=timestamps'
 fi
 
+cp -v "$(dirname $0)/unizip-readme.txt" "${content_dir}/README.txt"
+
 # Prepare pkg/
 mkdir -v "${content_dir}/pkg"
 for dpk in $(find "${release_dir}" -name '*.dpk')
