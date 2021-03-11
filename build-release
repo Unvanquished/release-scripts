@@ -572,7 +572,7 @@ build () {
 			(
 				cd "${breakpad_dir}"
 
-				./configure \
+				autoreconf -fvi && ./configure \
 				|| throwError INTERNAL 'breakpad configure failed'
 			)
 
