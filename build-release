@@ -92,10 +92,10 @@ printHelp () {
 	${tab}${tab}build mac x86_64 engine (incomplete)
 
 	${tab}windows-i686
-	${tab}${tab}build windows x86 engine (incomplete)
+	${tab}${tab}build windows x86 engine
 
 	${tab}windows-amd64
-	${tab}${tab}build windows x86_64 engine (incomplete)
+	${tab}${tab}build windows x86_64 engine
 
 	Example:
 
@@ -149,6 +149,12 @@ dumpSymbols () {
 findDll () {
 	local mingw_arch="${1}"
 	local dll_name="${2}"
+
+	if [ -z "${mingw_arch}" ]
+	then
+		find "${MINGW_PREFIX}/bin/${dll_name}"
+		return
+	fi
 
 	# HACK: sort to get posix flavor of libstdc++ before win32 flavor
 	find '/usr' -name "${dll_name}" -type f | sort | grep --max-count=1 "${mingw_arch}" \
@@ -447,7 +453,13 @@ build () {
 		then
 			if "${arch_i686}"
 			then
-				special_dll='libgcc_s_sjlj-1.dll'
+				if "${host_windows}"
+				then
+					# MSYS2 uses the DWARF exception flavor
+					special_dll='libgcc_s_dw2-1.dll'
+				else
+					special_dll='libgcc_s_sjlj-1.dll'
+				fi
 			else
 				special_dll='libgcc_s_seh-1.dll'
 			fi
@@ -551,7 +563,11 @@ build () {
 			throwError INTERNAL "breakpad dir missing: ${breakpad_dir}"
 		fi
 
-		if ! [ -f "${dumpsyms_bin}" ]
+		# Check for working dump_syms. In MSYS2 it doesn't run from an opposite-bitness shell.
+		local exitcode=0
+		"${dumpsyms_bin}" --help 2>/dev/null || exitcode=$?
+
+		if [ "${exitcode}" -gt 1 ]
 		then
 			(
 				cd "${breakpad_dir}"
@@ -563,7 +579,12 @@ build () {
 			make -C"${breakpad_dir}" clean \
 			|| true
 
-			make -j"${job_count}" -C"${breakpad_dir}" \
+			local make_targets=''
+			if "${host_windows}"
+			then
+				make_targets='src/tools/windows/dump_syms_dwarf/dump_syms.exe'
+			fi
+			make -j"${job_count}" -C"${breakpad_dir}" $make_targets \
 			|| throwError INTERNAL 'breakpad build failed'
 		fi
 	fi
