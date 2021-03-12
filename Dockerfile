@@ -13,8 +13,8 @@ ENV TOOLCHAIN_DEPS=' \
     make \
     p7zip-full \
     python2 \
-    python-jinja2 \
-    python-yaml \
+    python3-jinja2 \
+    python3-yaml \
     rsync \
 '
 
@@ -59,7 +59,6 @@ RUN update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc
     update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix && \
     update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix && \
     update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-# TODO: try mingw targets and vms
 
 ARG rev
 RUN test -n "$rev"
@@ -80,4 +79,8 @@ RUN ./build.sh linux64 install
 
 COPY build-release /
 WORKDIR /Unvanquished
-RUN /build-release -j`nproc` linux-amd64
+ARG targets='linux-amd64 windows-i686 windows-amd64 vm'
+RUN /build-release -j`nproc` ${targets}
+
+COPY build-release make-unizip unizip-readme.txt /
+RUN /make-unizip /Unvanquished/build/release
