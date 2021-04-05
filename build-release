@@ -89,7 +89,7 @@ printHelp () {
 	${tab}${tab}build linux x86_64 engine
 
 	${tab}macos-amd64
-	${tab}${tab}build mac x86_64 engine (incomplete)
+	${tab}${tab}build mac x86_64 engine
 
 	${tab}windows-i686
 	${tab}${tab}build windows x86 engine
