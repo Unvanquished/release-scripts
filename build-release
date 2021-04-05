@@ -75,7 +75,7 @@ printHelp () {
 	${tab}${tab}beware: return code will be inaccurate
 
 	${tab}-v
-	${tav}${tab}write package version strings
+	${tab}${tab}write package version strings
 
 	Target can be:
 
