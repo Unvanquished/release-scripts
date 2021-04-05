@@ -393,8 +393,10 @@ build () {
 	then
 		PATH="${PATH}:/Applications/CMake.app/Contents/bin"
 		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF"
+		produce_symbols=false
 	else
 		cmake_opts="${cmake_opts} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_BREAKPAD=ON"
+		produce_symbols=true
 	fi
 
 	if "${system_macos}" && "${arch_amd64}"
@@ -551,7 +553,7 @@ build () {
 		fi
 	fi
 
-	if "${build_vm}" || "${build_engine}"
+	if "${produce_symbols}"
 	then
 		# build breakpad
 
@@ -658,16 +660,19 @@ build () {
 
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
 
-		# extract engine symbols
-
 		mkdir -pv "${content_dir}"
 
-		for bin in ${engine_symbolize_list}
-		do
-			bin_path="${target_build_dir}/${bin}"
-			printf 'extracting symbols from %s\n' "${bin_path}"
-			dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${bin_path}"
-		done
+		if "${produce_symbols}"
+		then
+			# extract engine symbols
+
+			for bin in ${engine_symbolize_list}
+			do
+				bin_path="${target_build_dir}/${bin}"
+				printf 'extracting symbols from %s\n' "${bin_path}"
+				dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${bin_path}"
+			done
+		fi
 
 		for file in ${engine_file_list}
 		do
@@ -680,11 +685,14 @@ build () {
 			"${strip}" "${content_dir}/${file}"
 		done
 
-		# compress engine symbols
+		if "${produce_symbols}"
+		then
+			# compress engine symbols
 
-		package "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
+			package "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
 
-		cp -v "${symbol_archive_filename}" "${content_dir}/${symbol_archive_basename}-${target}.${symbol_archive_format}"
+			cp -v "${symbol_archive_filename}" "${content_dir}/${symbol_archive_basename}-${target}.${symbol_archive_format}"
+		fi
 
 		# make engine archive
 
