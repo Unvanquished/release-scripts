@@ -447,7 +447,7 @@ build () {
 
 		if "${system_macos}"
 		then
-			engine_file_list="${engine_file_list} daemon daemonded daemon" # TODO add dylibs/frameworks/nacl loaders
+			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader libGLEW.2.2.0.dylib libopenal.1.18.2.dylib"
 			# No Breakpad, hence no symbolize and strip steps
 		fi
 
@@ -674,15 +674,30 @@ build () {
 			done
 		fi
 
+		local engine_file_dest="${content_dir}"
+		if "${system_macos}"
+		then
+			engine_file_dest="${content_dir}/Unvanquished.app/Contents/MacOS"
+			mkdir -pv "${engine_file_dest}"
+			cp -v "${root_dir}/macosx/unvanquished.sh" "${engine_file_dest}"
+			cp -av "${target_build_dir}/SDL2.framework" "${engine_file_dest}"
+			rm -rv "${engine_file_dest}/SDL2.framework/Headers"
+			rm -rv "${engine_file_dest}/SDL2.framework/Versions/A/Headers"
+			rm -rv "${engine_file_dest}/SDL2.framework/Versions/Current/Headers"
+			cp -v "${root_dir}/macosx/Info.plist" "${content_dir}/Unvanquished.app/Contents"
+			mkdir -v "${content_dir}/Unvanquished.app/Contents/Resources"
+			cp -v "${root_dir}/macosx/Unvanquished.icns" "${content_dir}/Unvanquished.app/Contents/Resources"
+		fi
+
 		for file in ${engine_file_list}
 		do
-			cp -v "${target_build_dir}/${file}" "${content_dir}/${file}"
+			cp -v "${target_build_dir}/${file}" "${engine_file_dest}/${file}"
 		done
 
 		for file in ${engine_strip_list}
 		do
 			echo "Stripping ${file}"
-			"${strip}" "${content_dir}/${file}"
+			"${strip}" "${engine_file_dest}/${file}"
 		done
 
 		if "${produce_symbols}"
