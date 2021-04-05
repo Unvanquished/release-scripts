@@ -392,7 +392,7 @@ build () {
 	if "${system_macos}"
 	then
 		PATH="${PATH}:/Applications/CMake.app/Contents/bin"
-		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF"
+		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF -DGMP_LIBRARY=${target_build_dir}/external_deps/macosx64-5/lib/libgmp.a"
 		produce_symbols=false
 	else
 		cmake_opts="${cmake_opts} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_BREAKPAD=ON"
@@ -530,6 +530,18 @@ build () {
 	if "${build_vm}" || "${build_engine}"
 	then
 		daemon_dir="$(cmake -H"${root_dir}" -B"${target_build_dir}" -LH | grep '^DAEMON_DIR:' | sed -e 's/[^=]*=//')"
+	fi
+
+	if "${system_macos}"
+	then
+
+		# Build GMP (https://github.com/DaemonEngine/Daemon/issues/439)
+		mkdir -v "${target_build_dir}/external_deps"
+		(
+			cd "${target_build_dir}/external_deps"
+			"${daemon_dir}/external_deps/build.sh" macosx64 gmp
+			"${daemon_dir}/external_deps/build.sh" macosx64 install
+		)
 	fi
 
 	if "${build_vm}"
