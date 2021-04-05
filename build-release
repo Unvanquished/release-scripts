@@ -564,8 +564,10 @@ build () {
 		fi
 
 		# Check for working dump_syms. In MSYS2 it doesn't run from an opposite-bitness shell.
-		local exitcode=0
-		"${dumpsyms_bin}" --help 2>/dev/null || exitcode=$?
+		set +e
+		"${dumpsyms_bin}" --help 2>/dev/null
+		local exitcode=$?
+		set -e
 
 		if [ "${exitcode}" -gt 1 ]
 		then
