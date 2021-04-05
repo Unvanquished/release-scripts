@@ -168,7 +168,7 @@ cleanSymbols () {
 	if [ -e "${symbol_dir}" ]
 	then
 		find "${symbol_dir}" -type f -name '*.sym' -exec rm -v {} \;
-		find "${symbol_dir}" -depth -type d -exec rmdir -v {} \;
+		find "${symbol_dir}" -depth -type d -exec rmdir {} \;
 	fi
 
 	if [ -f "${symbol_archive_filename}" ]
@@ -210,7 +210,7 @@ cleanEngineBuildDir () {
 	if [ -e "${content_dir}" ]
 	then
 		find "${content_dir}" -type f -exec rm -v {} \;
-		find "${content_dir}" -depth -type d -exec rmdir -v {} \;
+		find "${content_dir}" -depth -type d -exec rmdir {} \;
 	fi
 }
 
@@ -222,7 +222,7 @@ cleanVmBuildDir () {
 	then
 		find "${content_dir}" -type f -name '?game-*.nexe' -exec rm -v {} \;
 		find "${content_dir}" -type f -name "${symbol_archive_basename}.*" -exec rm -v {} \;
-		find "${content_dir}" -depth -type d -exec rmdir -v {} \;
+		find "${content_dir}" -depth -type d -exec rmdir {} \;
 	fi
 }
 
