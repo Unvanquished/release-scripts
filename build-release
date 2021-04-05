@@ -340,21 +340,21 @@ build () {
 			;;
 	esac
 
-	git_last_commit="$(git rev-list HEAD | head -n 1)"
-	git_last_commit_short="$(git rev-list HEAD | head -n 1 | cut -c1-7)"
-	git_ref="$(git describe --tags --match 'v*' | cut -c2-)"
-	git_last_tag="$(git describe --tags --match 'v*' | cut -f1 -d'-' | cut -c2-)"
-	git_last_date="$(date --date="@$(git log -1 '--pretty=format:%ct')" -u '+%Y%m%d-%H%M%S')"
-
-	if [ "${git_ref}" = "${git_last_tag}" ]
-	then
-		build_version="${git_ref}"
-	else
-		build_version="${git_last_tag}+${git_last_date}+${git_last_commit_short}+$(getUserName)"
-	fi
-
 	if "${write_version_string}"
 	then
+		git_last_commit="$(git rev-list HEAD | head -n 1)"
+		git_last_commit_short="$(git rev-list HEAD | head -n 1 | cut -c1-7)"
+		git_ref="$(git describe --tags --match 'v*' | cut -c2-)"
+		git_last_tag="$(git describe --tags --match 'v*' | cut -f1 -d'-' | cut -c2-)"
+		git_last_date="$(date --date="@$(git log -1 '--pretty=format:%ct')" -u '+%Y%m%d-%H%M%S')"
+
+		if [ "${git_ref}" = "${git_last_tag}" ]
+		then
+			build_version="${git_ref}"
+		else
+			build_version="${git_last_tag}+${git_last_date}+${git_last_commit_short}+$(getUserName)"
+		fi
+
 		vmpak_version_string="_${build_version}"
 		engine_version_string="_${build_version}"
 	else
