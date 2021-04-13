@@ -455,6 +455,8 @@ build () {
 		then
 			if "${arch_i686}"
 			then
+				engine_file_list="${engine_file_list} nacl_loader64.exe irt_core-x86_64.nexe" # WOW64 support
+
 				if "${host_windows}"
 				then
 					# MSYS2 uses the DWARF exception flavor
