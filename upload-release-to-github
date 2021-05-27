@@ -1,0 +1,137 @@
+#! /usr/bin/env bash
+
+# ===========================================================================
+#
+# Copyright (c) 2017-2020 Unvanquished Developers
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# ===========================================================================
+
+# FIXME: this is not ready for non-Alpha/Beta releases
+
+# exit in case of failure
+set -e
+# error on undefined variable
+set -u
+
+# Get github-release with: go get github.com/aktau/github-release
+export GITHUB_RELEASE="${GITHUB_RELEASE:-github-release}"
+# GitHub Auth token. Generate one from settings
+export GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+
+# Github organization and repository like in
+# github.com/GITHUB_USER/GITHUB_REPO
+export GITHUB_USER='Unvanquished'
+export GITHUB_REPO='Unvanquished'
+
+throwError () {
+	local format="${1}"
+	shift
+
+	printf "ERROR: ${format}\n" "${@}" >&2
+	exit 1
+}
+
+printHelp () {
+	local prog_name="$(basename "${BASH_SOURCE[0]}")"
+
+	sed -e 's/\\t/\t/g' <<-EOF
+	${prog_name}: create a release draft on GitHub and upload an archive file
+
+	Usage:
+
+	\t${prog_name} VERSION STATUS FILE
+
+	Note:
+
+	\tGITHUB_TOKEN environment variable must be set
+
+	\tgithub-release must be in PATH
+	\tor GITHUB_RELEASE environment variable
+	\tmust be set to github-release path
+
+	Example:
+
+	\t${prog_name} 0.51.2 Alpha unvanquished_0.51.2.zip
+	EOF
+
+	exit
+}
+
+if [ "${1:-}" = '-h' -o "${1:-}" = '--help' ]
+then
+	printHelp
+fi
+
+if [ -z "${GITHUB_TOKEN}" ]
+then
+	throwError 'empty or missing GITHUB_TOKEN environment variable'
+fi
+
+if ! command -v "${GITHUB_RELEASE}" >/dev/null
+then
+	throwError 'github-release file not in path: %s' "${GITHUB_RELEASE}"
+fi
+
+if [ -z "${1:-}" ]
+then
+	throwError 'missing version number argument'
+fi
+
+if [ -z "${2:-}" ]
+then
+	throwError 'missing version status argument'
+fi
+
+if [ -z "${3:-}" ]
+then
+	throwError 'missing file name argument'
+fi
+
+version_number="${1}"
+version_status="${2}"
+archive_file="${3}"
+
+if ! [ -e "${archive_file}" ]
+then
+	throwError 'missing file: %s' "${archive_file}"
+fi
+
+if ! [ -f "${archive_file}" ]
+then
+	throwError 'not a file: %s' "${archive_file}"
+fi
+
+if [ "$(find . -empty -name "${archive_file}")" = "./${archive_file}" ]
+then
+	throwError 'empty file: %s' "${archive_file}"
+fi
+
+"${GITHUB_RELEASE}" release \
+	--tag "v${version_number}" \
+	--name "${version_status} ${version_number} Release" \
+	--description "${version_status} ${version_number} release for Unvanquished" \
+	--pre-release \
+	--draft \
+
+"${GITHUB_RELEASE}" upload \
+	--tag "v${version_number}" \
+	--name "$(basename $archive_file)" \
+	--file "${archive_file}"
