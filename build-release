@@ -63,7 +63,7 @@ printHelp () {
 	${tab}${prog_name} [option] <target>
 
 	The script must be called within game source directory,
-	but can be called from everywhere in source directory.
+	but can be called from anywhere in source directory.
 
 	Option can be:
 
