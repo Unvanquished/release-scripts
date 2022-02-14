@@ -74,6 +74,9 @@ printHelp () {
 	${tab}${tab}build multiple targets at once in parallel
 	${tab}${tab}beware: return code will be inaccurate
 
+	${tab}-u
+	${tab}${tab}write username in version string (requires -v)
+
 	${tab}-v
 	${tab}${tab}write package version strings
 
@@ -242,11 +245,52 @@ package () {
 	)
 }
 
+printVersion () {
+	local tag_string='0'
+	local date_string=''
+	local ref_string=''
+	local dirt_string=''
+
+	local git_last_commit_short="$(git rev-parse --short HEAD)"
+
+	if [ -n "${git_last_commit_short}" ]
+	then
+		local git_describe_string="$(git describe --tags --match 'v[0-9].*' 2>/dev/null | cut -c2-)"
+		local git_closest_tag="$(git describe --tags --abbrev=0 --match 'v[0-9].*' 2>/dev/null | cut -c2-)"
+		local git_last_commit_date="$(date --date="@$(git log -1 '--pretty=format:%ct')" --utc '+%Y%m%d-%H%M%S')"
+
+		if [ -n "${git_closest_tag}" ]
+		then
+			tag_string="${git_closest_tag}"
+
+			if [ "${git_closest_tag}" != "${git_describe_string}" ]
+			then
+				date_string="-${git_last_commit_date}"
+				ref_string="-${git_last_commit_short}"
+			fi
+		else
+			date_string="-${git_last_commit_date}"
+			ref_string="-${git_last_commit_short}"
+		fi
+	else
+		date_string="-$(date --utc '+%Y%m%d-%H%M%S')"
+		ref_string='-0'
+	fi
+
+	if ! git diff --quiet 2>/dev/null
+	then
+		dirt_string='-dirty'
+	fi
+
+	echo "${tag_string}${date_string}${ref_string}${dirt_string}"
+}
+
 build () {
 	local job_count="${1}"
 	local write_version_string="${2}"
-	local root_dir="${3}"
-	local target="${4}"
+	local write_username_string="${3}"
+	local root_dir="${4}"
+	local target="${5}"
 
 	local symbol_archive_basename='symbols'
 	local vmpak_archive_basename=''
@@ -342,17 +386,11 @@ build () {
 
 	if "${write_version_string}"
 	then
-		git_last_commit="$(git rev-list HEAD | head -n 1)"
-		git_last_commit_short="$(git rev-list HEAD | head -n 1 | cut -c1-7)"
-		git_ref="$(git describe --tags --match 'v*' | cut -c2-)"
-		git_last_tag="$(git describe --tags --match 'v*' | cut -f1 -d'-' | cut -c2-)"
-		git_last_date="$(date --date="@$(git log -1 '--pretty=format:%ct')" -u '+%Y%m%d-%H%M%S')"
+		build_version="$(printVersion)"
 
-		if [ "${git_ref}" = "${git_last_tag}" ]
+		if "${write_username_string}"
 		then
-			build_version="${git_ref}"
-		else
-			build_version="${git_last_tag}+${git_last_date}+${git_last_commit_short}+$(getUserName)"
+			build_version+="-$(whoami | tr '[:upper:]' '[:lower:]')"
 		fi
 
 		vmpak_version_string="_${build_version}"
@@ -741,6 +779,7 @@ root_dir="$(git rev-parse --show-toplevel)"
 job_count=''
 parallel_target='false'
 write_version_string='false'
+write_username_string='false'
 target_list=''
 
 while [ -n "${1:-}" ]
@@ -765,6 +804,10 @@ do
 			parallel_target='true'
 			shift
 			;;
+		'-u')
+			write_username_string='true'
+			shift
+			;;
 		'-v')
 			write_version_string='true'
 			shift
@@ -785,9 +828,9 @@ for target in ${target_list}
 do
 	if "${parallel_target}"
 	then
-		build "${job_count}" "${write_version_string}" "${root_dir}" "${target}" &
+		build "${job_count}" "${write_version_string}" "${write_username_string}" "${root_dir}" "${target}" &
 	else
-		build "${job_count}" "${write_version_string}" "${root_dir}" "${target}"
+		build "${job_count}" "${write_version_string}" "${write_username_string}" "${root_dir}" "${target}"
 	fi
 done
 wait
