@@ -71,10 +71,9 @@ RUN git clone --depth 20 --no-single-branch https://github.com/Unvanquished/Unva
 WORKDIR /Unvanquished/daemon/external_deps
 # Build some static libraries in the cases where the package manager didn't provide a satisfactory one.
 # openal, glew, ncurses: a static library is not provided
-# geoip: there is a static library but it seems broken - "archive has no index"
 # sdl2: the static library is configured to have non-optional dependencies on some dynamic libs
 # curl: static libraries are configured with unneeded protocols that have extra dynamic dependencies
-RUN ./build.sh linux64 geoip curl sdl2 glew openal ncurses naclsdk naclports
+RUN ./build.sh linux64 curl sdl2 glew openal ncurses naclsdk naclports
 RUN ./build.sh linux64 install
 
 COPY build-release /
