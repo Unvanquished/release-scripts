@@ -447,7 +447,7 @@ build () {
 
 		if "${system_macos}"
 		then
-			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader libGLEW.2.2.0.dylib libopenal.1.18.2.dylib"
+			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader"
 			# No Breakpad, hence no symbolize and strip steps
 		fi
 
@@ -552,6 +552,11 @@ build () {
 		if "${system_windows}"
 		then
 			engine_file_list="${engine_file_list} $(cd "${target_build_dir}" && ls *.dll)"
+		elif "${system_macos}"
+		then
+			# On Mac there are multiple copies of each dylib; get the ones with 3 version numbers
+			# stat -f%N just echos back the filenames while erroring if one doesn't exist
+			engine_file_list="${engine_file_list} $(cd "${target_build_dir}" && stat -f%N libGLEW.*.*.*.dylib libopenal.*.*.*.dylib)"
 		fi
 	fi
 
