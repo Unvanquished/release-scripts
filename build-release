@@ -392,7 +392,8 @@ build () {
 	if "${system_macos}"
 	then
 		PATH="${PATH}:/Applications/CMake.app/Contents/bin"
-		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF -DGMP_LIBRARY=${target_build_dir}/external_deps/macosx64-5/lib/libgmp.a"
+		deps_version="$("${root_dir}/daemon/external_deps/build.sh" '--print-version' 'DEPS')"
+		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF -DGMP_LIBRARY=${target_build_dir}/external_deps/macosx64-${deps_version}/lib/libgmp.a"
 		produce_symbols=false
 	else
 		cmake_opts="${cmake_opts} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_BREAKPAD=ON"
@@ -447,7 +448,10 @@ build () {
 
 		if "${system_macos}"
 		then
-			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader libGLEW.2.2.0.dylib libopenal.1.18.2.dylib"
+			
+			glew_version="$("${root_dir}/daemon/external_deps/build.sh" '--print-version' 'GLEW')"
+			openal_version="$("${root_dir}/daemon/external_deps/build.sh" '--print-version' 'OPENAL')"
+			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader libGLEW.${glew_version}.dylib libopenal.${openal_version}.dylib"
 			# No Breakpad, hence no symbolize and strip steps
 		fi
 
