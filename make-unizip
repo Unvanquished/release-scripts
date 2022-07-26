@@ -93,7 +93,7 @@ done
 # Compress symbols
 (
 	cd "${work_dir}"
-	7z a -tzip -mx=9 -r "unvanquished_${version}/symbols_${version}.zip" symbols
+	7z a -tzip -mx=9 "unvanquished_${version}/symbols_${version}.zip" symbols
 )
 
 # Create (partial) universal zip
@@ -104,7 +104,7 @@ done
 		rm -v "../unvanquished_${version}.zip"
 	fi
 	# Even though almost all the contents are compressed already, it still saves some...
-	7z a -tzip -mx=9 -r "../unvanquished_${version}.zip" "unvanquished_${version}"
+	7z a -tzip -mx=9 "../unvanquished_${version}.zip" "unvanquished_${version}"
 )
 
 rm -rv "${work_dir}"
