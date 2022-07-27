@@ -36,13 +36,20 @@ fi
 release_dir="$(sed -E 's!/+!/!g; s!(.)/$!\1!' <<< "$1")" # 7z chokes on extra slashes
 version='0' # TODO
 work_dir="${release_dir}/unizip_staging"
-content_dir="${work_dir}/unvanquished_${version}"
+
+release_basename="unvanquished_${version}"
+release_zip="${release_basename}.zip"
+symbols_basename="symbols_${version}"
+symbols_zip="symbols_${version}.zip"
+
+content_dir="${work_dir}/${release_basename}"
 
 extractSymbols () {
 	local archive="$1"
-	if symbol_archive=$(7z l "${archive}" | grep -oE 'symbol.*7z')
+	if symbol_archive=$(7z l "${archive}" | grep -oE 'symbols.*\.7z|unvanquished_.*/symbols_.*\.zip')
 	then
 		echo "extracting ${symbol_archive}"
+		mkdir -p "${work_dir}/symbols"
 		7z x -o"${work_dir}" "${archive}" "${symbol_archive}" >/dev/null
 		7z x -o"${work_dir}/symbols" "${work_dir}/${symbol_archive}" >/dev/null
 		echo "deleting ${symbol_archive} from ${archive}"
@@ -54,8 +61,20 @@ if [ -d "${work_dir}" ]
 then
 	rm -rv "${work_dir}"
 fi
+
 mkdir -v "${work_dir}"
 mkdir -v "${content_dir}"
+
+# If there is already a supposedly incomplete release zip, for example
+# an unvanquished_0.zip containing linux-amd64.zip, windows-i386.zip
+# and windows-amd64.zip, and a lone macos-amd64.zip build next to it,
+# extend unvanquished_0.zip with macos-amd64.zip.
+if [ -f "${release_dir}/${release_zip}" ]
+then
+	extractSymbols "${release_dir}/${release_zip}"
+
+	7z x -o"${work_dir}" "${release_dir}/${release_zip}" >/dev/null
+fi
 
 if cp --preserve=timestamps "$0" "${work_dir}/timestamp-test"
 then
@@ -65,25 +84,26 @@ fi
 cp -v "$(dirname $0)/unizip-readme.txt" "${content_dir}/README.txt"
 
 # Prepare pkg/
-mkdir -v "${content_dir}/pkg"
-for dpk in $(find "${release_dir}" -name '*.dpk')
+mkdir -pv "${content_dir}/pkg"
+for dpk in $(find "${release_dir}" ! -path "${work_dir}/*" -name '*.dpk')
 do
 	dest="${content_dir}/pkg/$(basename "${dpk}")"
 	cp -v "${dpk}" "${dest}"
 	extractSymbols "${dest}"
 done
+
 (
 	cd "${content_dir}/pkg"
-	if ls * >/dev/null
+	if ls *.dpk >/dev/null 2>&1
 	then
-		md5sum --binary -- * > md5sums
+		md5sum --binary -- *.dpk > md5sums
 	else
 		touch md5sums
 	fi
 )
 
 # Prepare <os>-<arch>.zip
-for os_zip in $(find "${release_dir}" -name '*.zip' | grep -E '/(windows|macos|linux)-[^/]*$')
+for os_zip in $(find "${release_dir}" ! -path "${work_dir}/*" -name '*.zip' | grep -E '/(windows|macos|linux)-[^/]*$')
 do
 	dest="${content_dir}/$(basename "${os_zip}")"
 	cp -v "${os_zip}" "${dest}"
@@ -92,8 +112,8 @@ done
 
 # Compress symbols
 (
-	cd "${work_dir}"
-	7z a -tzip -mx=9 "unvanquished_${version}/symbols_${version}.zip" symbols
+	cd "${work_dir}/symbols"
+	7z a -tzip -mx=9 "../${release_basename}/symbols_${version}.zip" .
 )
 
 # Create (partial) universal zip
@@ -104,7 +124,7 @@ done
 		rm -v "../unvanquished_${version}.zip"
 	fi
 	# Even though almost all the contents are compressed already, it still saves some...
-	7z a -tzip -mx=9 "../unvanquished_${version}.zip" "unvanquished_${version}"
+	7z a -tzip -mx=9 "../${release_zip}" "${release_basename}"
 )
 
 rm -rv "${work_dir}"
