@@ -720,11 +720,6 @@ build () {
 
 		engine_archive_filename="${release_dir}/${engine_archive_basename}${engine_version_string}.${engine_archive_format}"
 
-		if [ -f "${engine_archive_filename}" ]
-		then
-			rm -v "${engine_archive_filename}"
-		fi
-
 		package "${engine_archive_format}" "${engine_archive_filename}" "${content_dir}"
 
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
