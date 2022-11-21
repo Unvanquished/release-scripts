@@ -73,8 +73,8 @@ WORKDIR /Unvanquished/daemon/external_deps
 # openal, glew, ncurses: a static library is not provided
 # sdl2: the static library is configured to have non-optional dependencies on some dynamic libs
 # curl: static libraries are configured with unneeded protocols that have extra dynamic dependencies
-RUN ./build.sh linux64 curl sdl2 glew openal ncurses naclsdk naclports
-RUN ./build.sh linux64 install
+RUN ./build.sh linux-amd64-default curl sdl2 glew openal ncurses naclsdk naclports
+RUN ./build.sh linux-amd64-default install
 
 COPY build-release /
 WORKDIR /Unvanquished
