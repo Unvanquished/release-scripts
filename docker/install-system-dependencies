@@ -1,0 +1,171 @@
+#! /usr/bin/env bash
+
+# ===========================================================================
+#
+# Copyright (c) 2022 Unvanquished Developers
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# ===========================================================================
+
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+export DEBIAN_FRONTEND='noninteractive'
+
+system_packages=(
+	git
+	curl
+	p7zip-full
+)
+
+# Toolchain dependencies for Unvanquished, Daemon, external_packages, or build-release
+# g++ also brings build dependencies needed by other compilers used in place of g++
+generic_toolchain_packages=(
+	g++
+	pkg-config
+	autoconf
+	cmake
+	libtool
+	make
+	rsync
+)
+
+game_toolchain_packages=(
+	python3-jinja2
+	python3-yaml
+)
+
+# Libraries statically linked into the Linux binaries of Daemon
+# Unfortunately the Debian buster opus static libraries are not multiarch:
+# libopus-dev:native libopusfile-dev:native
+linux_generic_static_packages=(
+	libfreetype6-dev:native
+	libgmp-dev:native
+	libjpeg-dev:native
+	libogg-dev:native
+	libpng-dev:native
+	libvorbis-dev:native
+	libwebp-dev:native
+	nettle-dev:native
+	zlib1g-dev:native
+)
+
+# These are needed for building Daemon or its dependencies but not statically
+# linked into the binary.
+# The display-related ones are relevant for SDL configuration and are taken from
+# https://wiki.libsdl.org/FAQLinux#How_do_I_get_all_the_dependencies_for_building_SDL_on_Ubuntu.3F
+# The audio ones are relevant for OpenAL configuration.
+linux_generic_av_packages=(
+	libasound2-dev:native
+	libaudio-dev:native
+	libgl1-mesa-dev:native
+	libjack-jackd2-dev:native
+	libpulse-dev:native
+	libx11-dev:native
+	libxcursor-dev:native
+	libxext-dev:native
+	libxi-dev:native
+	libxinerama-dev:native
+	libxrandr-dev:native
+	libxss-dev:native
+	libxxf86vm-dev:native
+)
+
+declare -a alternative_pairs
+
+for target in ${targets}
+do
+	case "${target}" in
+	vm)
+		system_packages+=(${generic_toolchain_packages[@]})
+		system_packages+=(${game_toolchain_packages[@]})
+		;;
+	linux-amd64)
+		system_packages+=(${generic_toolchain_packages[@]})
+		;;
+	linux-i686)
+		system_packages+=(${generic_toolchain_packages[@]})
+		system_packages+=(g++-i686-linux-gnu binutils-multiarch)
+		;;
+	linux-arm64)
+		system_packages+=(${generic_toolchain_packages[@]})
+		system_packages+=(g++-aarch64-linux-gnu binutils-multiarch)
+		;;
+	linux-armhf)
+		system_packages+=(${generic_toolchain_packages[@]})
+		system_packages+=(g++-arm-linux-gnueabihf binutils-multiarch)
+		;;
+	windows-amd64)
+		system_packages+=(${generic_toolchain_packages[@]})
+		system_packages+=(g++-mingw-w64-x86-64)
+		alternative_pairs+=('x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix')
+		alternative_pairs+=('x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix')
+		;;
+	windows-i686)
+		system_packages+=(${generic_toolchain_packages[@]})
+		system_packages+=(g++-mingw-w64-i686)
+		alternative_pairs+=('i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix')
+		alternative_pairs+=('i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix')
+		;;
+	macos-*)
+		system_packages+=(gdebi-core)
+		;;
+	esac
+done
+
+native_packages=("${linux_generic_static_packages[@]}")
+native_packages+=("${linux_generic_av_packages[@]}")
+
+for target in ${targets}
+do
+	case "${target}" in
+	'linux-'*)
+		arch_name="${target#*-}"
+		arch_name="${arch_name/i686/i386}"
+
+		_exec dpkg --add-architecture "${arch_name}"
+
+		for native_package in "${native_packages[@]}"
+		do
+			system_packages+=("${native_package//:native/:${arch_name}}")
+		done
+		;;
+	esac
+done
+
+_exec apt-get update
+
+_exec apt-get install --yes "${system_packages[@]}"
+
+for alternative_pair in "${alternative_pairs[@]}"
+do
+	_exec update-alternatives --set ${alternative_pair}
+done
+
+for target in ${targets}
+do
+	case "${target}" in
+	macos-*)
+		_exec curl --location --output /darling.deb \
+			'https://github.com/darlinghq/darling/releases/download/v0.1.20220929_update_sources_11_5/darling_0.1.20220929.focal_amd64.deb'
+
+		_exec gdebi --non-interactive /darling.deb
+		;;
+	esac
+done

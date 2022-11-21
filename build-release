@@ -2,7 +2,7 @@
 
 # ===========================================================================
 #
-# Copyright (c) 2017-2020 Unvanquished Developers
+# Copyright (c) 2017-2022 Unvanquished Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,6 @@
 # SOFTWARE.
 #
 # ===========================================================================
-
 
 # exit in case of failure
 set -e
@@ -85,20 +84,23 @@ printHelp () {
 	${tab}vm
 	${tab}${tab}build virtual machine
 
-	${tab}linux-i686
-	${tab}${tab}build linux x86 engine
-
 	${tab}linux-amd64
 	${tab}${tab}build linux x86_64 engine
+
+	${tab}linux-armhf
+	${tab}${tab}build linux armhf engine
+
+	${tab}linux-arm64
+	${tab}${tab}build linux arm64 engine
 
 	${tab}macos-amd64
 	${tab}${tab}build mac x86_64 engine
 
-	${tab}windows-i686
-	${tab}${tab}build windows x86 engine
-
 	${tab}windows-amd64
 	${tab}${tab}build windows x86_64 engine
+
+	${tab}windows-i686
+	${tab}${tab}build windows x86 engine
 
 	Example:
 
@@ -305,7 +307,7 @@ build () {
 	local release_dir="${build_dir}/release"
 
 	local vm_kind_list='cgame sgame'
-	local vm_arch_list='x86 x86_64'
+	local vm_arch_list='x86 x86_64 armhf'
 	local main_nexe='main.nexe'
 
 	local engine_file_list=''
@@ -322,6 +324,8 @@ build () {
 
 	local arch_amd64='false'
 	local arch_i686='false'
+	local arch_arm64='false'
+	local arch_armhf='false'
 
 	local host_linux='false'
 	local host_mac='false'
@@ -359,6 +363,14 @@ build () {
 		*'-i686')
 			arch_i686='true'
 			engine_file_list="${engine_file_list} irt_core-x86.nexe"
+			;;
+		*'-arm64')
+			arch_arm64='true'
+			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
+			;;
+		*'-armhf')
+			arch_armhf='true'
+			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
 			;;
 	esac
 
@@ -418,7 +430,7 @@ build () {
 		echo "Removing '${target_build_dir}' and contents"
 		# Safe w.r.t. symlinks, as long as you don't put a trailing slash:
 		# https://superuser.com/questions/382314/does-rm-rf-follow-symbolic-links
-		rm -r "${target_build_dir}"
+#		rm -r "${target_build_dir}"
 	fi
 
 	mkdir -pv "${target_build_dir}"
@@ -479,7 +491,17 @@ build () {
 			engine_strip_list='daemon daemonded daemon-tty crash_server'
 			if "${arch_i686}"
 			then
-				cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-linux32.cmake"
+				cmake_opts+=' -DCMAKE_C_COMPILER=i686-linux-gnu-gcc'
+				cmake_opts+=' -DCMAKE_CXX_COMPILER=i686-linux-gnu-g++'
+			elif "${arch_arm64}"
+			then
+				engine_file_list+=" nacl_helper_bootstrap-armhf lib-armhf/ld-linux-armhf lib-armhf/libc.so.6 lib-armhf/libgcc_s.so.1 lib-armhf/libm.so.6 lib-armhf/libpthread.so.0 lib-armhf/librt.so.1 lib-armhf/libstdc++.so.6"
+				cmake_opts+=' -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc'
+				cmake_opts+=' -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++'
+			elif "${arch_armhf}"
+			then
+				cmake_opts+=' -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc'
+				cmake_opts+=' -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++'
 			fi
 		fi
 
@@ -736,6 +758,13 @@ build () {
 
 		for file in ${engine_file_list}
 		do
+			file_dir="$(dirname "${file}")"
+
+			if [ "${file_dir}" != '.' ]
+			then
+				mkdir -pv "${engine_file_dest}/${file_dir}"
+			fi
+
 			cp -v "${target_build_dir}/${file}" "${engine_file_dest}/${file}"
 		done
 
@@ -780,7 +809,7 @@ target_list=''
 while [ -n "${1:-}" ]
 do
 	case "${1}" in
-	'vm'|'linux-amd64'|'linux-i686'|'macos-amd64'|'windows-amd64'|'windows-i686')
+	'vm'|'linux-amd64'|'linux-i686'|'linux-arm64'|'linux-armhf'|'macos-amd64'|'windows-amd64'|'windows-i686')
 			target_list="${target_list} ${1}"
 			shift
 			;;

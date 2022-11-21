@@ -1,0 +1,267 @@
+#! /usr/bin/env python3
+#-*- coding: UTF-8 -*-
+
+# ===========================================================================
+#
+# Copyright (c) 2022 Unvanquished Developers
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# ===========================================================================
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+
+known_target_list = [
+    "linux-amd64",
+    "linux-i686",
+    "linux-arm64",
+    "linux-armhf",
+    "windows-amd64",
+    "windows-i686",
+    "macos-amd64",
+    "vm",
+]
+
+image_name_list = [
+    "unvanquished-darling-system",
+    "unvanquished-darling-darling",
+    "unvanquished-darling-source",
+    "unvanquished-common-system",
+    "unvanquished-common-source",
+    "unvanquished-unizip-system",
+    "unvanquished-chown-system",
+]
+
+def error(message):
+    print("ERROR: {}".format(message), file=sys.stderr)
+    exit(1)
+
+class Docker():
+    def __init__(self, docker_command):
+        self.docker_command = docker_command
+
+    def run(self, command_name, command_list, stdout=None, stderr=None):
+        if not(self.docker_command):
+            error("Docker command is not set, this should not happen.")
+
+        # Special keyword to do a “docker run” while
+        # mounting some folder from the host.
+        if command_name == "mrun":
+            docker_command_name = "run"
+        else:
+            docker_command_name = command_name
+
+        docker_command_list = [self.docker_command, docker_command_name]
+
+        if command_name == "build":
+            docker_command_list.append(".")
+
+            docker_tag_name = command_list[0]
+            command_list = command_list[1:]
+
+            docker_command_list.extend([
+                    "--file", "docker/{}.Dockerfile".format(docker_tag_name),
+                    "--tag", "{}".format(docker_tag_name)])
+
+        elif command_name == "mrun":
+            os.makedirs("build/release", exist_ok=True)
+
+            mount_string="type=bind,source={},destination={}".format(
+                os.path.realpath("build/release"),
+                "/Unvanquished/build/release")
+
+            docker_command_list.extend(["--mount", mount_string])
+
+        docker_command_list.extend(command_list)
+
+        print("Running: {}".format(" ".join(docker_command_list)))
+
+        process = subprocess.Popen(docker_command_list, stdout=stdout, stderr=stderr, text=True)
+
+        out, err = process.communicate()
+
+        if command_name not in ["inspect", "rmi"] and process.returncode != 0:
+            error("Docker command failed: {}".format(" ".join(docker_command_list)))
+
+        return out, err
+
+def main():
+    os.chdir(os.path.realpath(os.path.dirname(__file__)))
+
+    known_target_option_list = " ".join(["all"] + known_target_list)
+
+    description="%(prog)s builds Unvanquished engine, virtual machine and universal zip in Docker."
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--clean", dest="clean", help="Delete previous target and universal zip builds.", action="store_true")
+    parser.add_argument("--prune", dest="prune", help="Delete all docker images from previous target builds.", action="store_true")
+    parser.add_argument("--reimage", dest="reimage", help="Rebuild the system docker images for the targets to build.", action="store_true")
+    parser.add_argument("--reference", dest="reference", metavar="REFERENCE", nargs='?', help="Git reference for targets to build.")
+    parser.add_argument("--targets", dest="targets", metavar="TARGETS", nargs='+', help="List of targets. Requires a reference. Available targets: {}".format(known_target_option_list))
+    parser.add_argument("--unizip", dest="unizip", help="Make an universal zip out of built targets.", action="store_true")
+    parser.add_argument("--chown", dest="chown", help="Change ownership of produced files, this option should never be needed as other tasks are expected to do it.", action="store_true")
+    parser.add_argument("--docker", dest="docker", metavar="PATH", default="docker", help="Path to the docker binary. Default: %(default)s.")
+
+    args = parser.parse_args()
+
+    docker = Docker(args.docker)
+
+    if args.targets and not args.reference:
+        error("Building a target requires a reference.")
+
+    target_list = []
+
+    if args.targets:
+        for target_name in args.targets:
+            if target_name in known_target_list:
+                target_list.append(target_name)
+            elif target_name == "all":
+                continue
+            else:
+                error("Unknown target: {}".format(target_name))
+
+        if "all" in args.targets:
+            target_list = known_target_list
+
+    if target_list:
+        target_list_string = " ".join(target_list)
+    else:
+        target_list_string = str(None)
+
+    print("Clean: {}".format(str(args.clean)))
+    print("Prune: {}".format(str(args.prune)))
+    print("Reimage: {}".format(str(args.reimage)))
+    print("Reference: {}".format(str(args.reference)))
+    print("Targets: {}".format(target_list_string))
+    print("Unizip: {}".format(str(args.unizip)))
+    print("Chown: {}".format(str(args.chown)))
+
+    if args.clean:
+        if os.path.isdir("build/release"):
+            shutil.rmtree("build/release")
+
+    if args.prune:
+        for image_name in image_name_list:
+            docker.run("rmi", [image_name], stderr=subprocess.DEVNULL)
+
+    common_target_list = []
+    macos_target_list = []
+
+    for target_name in target_list:
+        if target_name.startswith("macos-"):
+            macos_target_list.append(target_name)
+        else:
+            common_target_list.append(target_name)
+
+    if target_list:
+        reference_arg="--build-arg=reference={}".format(args.reference)
+
+        if args.reimage:
+            docker.run("rmi", ["unvanquished-common-system"], stderr=subprocess.DEVNULL)
+
+    if common_target_list:
+        targets_arg="--build-arg=targets={}".format(" ".join(common_target_list))
+        targets_env="--env=targets={}".format(" ".join(common_target_list))
+
+        # Install Debian and dependencies.
+        docker.run("build", ["unvanquished-common-system", targets_arg, reference_arg])
+
+        # Clone source repositories and build external dependencies.
+        docker.run("build", ["unvanquished-common-source", targets_arg, reference_arg])
+
+        # Build the targets.
+        docker.run("mrun", ["--rm", targets_env,
+            "unvanquished-common-source", "/docker/build-targets"])
+
+    if macos_target_list:
+        targets_arg="--build-arg=targets={}".format(" ".join(macos_target_list))
+        targets_env="--env=targets={}".format(" ".join(macos_target_list))
+
+        inspect_system_command_list = ["unvanquished-darling-system", "--format={{.Id}}"]
+
+        before, err = docker.run("inspect", inspect_system_command_list,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+        # Install Ubuntu, Darling, Xcode and other dependencies.
+        docker.run("build", ["unvanquished-darling-system", targets_arg, reference_arg])
+
+        after, err = docker.run("inspect", inspect_system_command_list,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+        is_modified = before != after
+
+        out, err = docker.run("inspect", ["unvanquished-darling-darling", "--format=true"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+        is_missing = not out.startswith("true")
+
+        # If unvanquished-darling-system was modified,
+        # or if unvanquished-darling-darling isn't built yet.
+        if is_modified or is_missing:
+            docker.run("rmi", ["unvanquished-darling-darling"], stderr=subprocess.DEVNULL)
+
+            # Install Xcode, Homebrew and dependencies in Darling.
+            # Darling doesn't run on unprivileged Docker for now.
+            # Docker doesn't allow privileged task on build step yet.
+            docker.run("run", ["--privileged",
+                "unvanquished-darling-system", "/docker/install-darling-dependencies"])
+
+            out, err = docker.run("ps", ["--all", "--format={{.ID}} {{.Image}}"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+            container_id = None
+
+            for ps_line in out.split("\n"):
+                ps_id, ps_name = ps_line.split(" ")
+
+                if ps_name == "unvanquished-darling-system":
+                    container_id = ps_id
+                    break;
+
+            if not container_id:
+                error("Missing darling container id, this should not happen.")
+
+            docker.run("commit", [container_id, "unvanquished-darling-darling"])
+
+        # Clone source repositories.
+        docker.run("build", ["unvanquished-darling-source", reference_arg])
+
+        # Build the targets.
+        docker.run("mrun", ["--privileged", "--rm", targets_env,
+            "unvanquished-darling-source", "/docker/build-targets"])
+
+    if args.unizip:
+        # Install Debian.
+        docker.run("build", ["unvanquished-unizip-system"])
+
+        # Build the unizip.
+        docker.run("mrun", ["--rm", "unvanquished-unizip-system", "/docker/build-unizip"])
+
+    if args.chown:
+        # Install Debian.
+        docker.run("build", ["unvanquished-chown-system"])
+
+        # Fix the ownership.
+        docker.run("mrun", ["--rm", "unvanquished-chown-system", "/docker/fix-ownership"])
+
+if __name__ == "__main__":
+    main()
