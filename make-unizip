@@ -112,8 +112,11 @@ done
 
 # Compress symbols
 (
-	cd "${work_dir}/symbols"
-	7z a -tzip -mx=9 "../${release_basename}/symbols_${version}.zip" .
+	if [ -d "${work_dir}/symbols" ]
+	then
+		cd "${work_dir}/symbols"
+		7z a -tzip -mx=9 "../${release_basename}/symbols_${version}.zip" .
+	fi
 )
 
 # Create (partial) universal zip
