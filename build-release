@@ -85,7 +85,7 @@ printHelp () {
 	${tab}${tab}build virtual machine
 
 	${tab}linux-amd64
-	${tab}${tab}build linux x86_64 engine
+	${tab}${tab}build linux amd64 engine
 
 	${tab}linux-armhf
 	${tab}${tab}build linux armhf engine
@@ -94,13 +94,13 @@ printHelp () {
 	${tab}${tab}build linux arm64 engine
 
 	${tab}macos-amd64
-	${tab}${tab}build mac x86_64 engine
+	${tab}${tab}build mac amd64 engine
 
 	${tab}windows-amd64
-	${tab}${tab}build windows x86_64 engine
+	${tab}${tab}build windows amd64 engine
 
 	${tab}windows-i686
-	${tab}${tab}build windows x86 engine
+	${tab}${tab}build windows i686 engine
 
 	Example:
 
@@ -307,7 +307,7 @@ build () {
 	local release_dir="${build_dir}/release"
 
 	local vm_kind_list='cgame sgame'
-	local vm_arch_list='x86 x86_64 armhf'
+	local vm_arch_list='i686 amd64 armhf'
 	local main_nexe='main.nexe'
 
 	local engine_file_list=''
@@ -358,11 +358,11 @@ build () {
 	case "${target}" in
 		*'-amd64')
 			arch_amd64='true'
-			engine_file_list="${engine_file_list} irt_core-x86_64.nexe"
+			engine_file_list="${engine_file_list} irt_core-amd64.nexe"
 			;;
 		*'-i686')
 			arch_i686='true'
-			engine_file_list="${engine_file_list} irt_core-x86.nexe"
+			engine_file_list="${engine_file_list} irt_core-i686.nexe"
 			;;
 		*'-arm64')
 			arch_arm64='true'
@@ -515,7 +515,7 @@ build () {
 		then
 			if "${arch_i686}"
 			then
-				engine_file_list="${engine_file_list} nacl_loader64.exe irt_core-x86_64.nexe" # WOW64 support
+				engine_file_list="${engine_file_list} nacl_loader-amd64.exe irt_core-amd64.nexe" # WOW64 support
 
 				if "${host_windows}"
 				then
