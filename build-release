@@ -24,11 +24,8 @@
 #
 # ===========================================================================
 
-
-# exit in case of failure
-set -e
-# error on undefined variable
-set -u
+shell_options=(-u -e -o pipefail)
+set "${shell_options[@]}"
 
 throwError () {
 	local error_keyword="${1}"
@@ -49,6 +46,10 @@ throwError () {
 
 	printf 'ERROR %s: %s\n' "${error_keyword}" "${error_message}" >&2
 	exit "${error_code}"
+}
+
+printWarning() {
+	printf 'WARNING: %s\n' "${1}" >&2
 }
 
 printHelp () {
@@ -80,10 +81,31 @@ printHelp () {
 	${tab}-v
 	${tab}${tab}write package version strings
 
+	${tab}--fake-urcheon
+	${tab}${tab}Badly emulate Urcheon, useful when Urcheon isn't available.
+	${tab}${tab}File optimizations and delta pak building with --reference
+	${tab}${tab}are missing.
+
+	${tab}-r [reference]
+	${tab}--reference [reference]
+	${tab}${tab}Build a delta base dpk from this reference, requires Urcheon.
+
+	${tab}--vmpak-name [name]
+	${tab}${tab}Use this name as vm dpk base name.
+
+	${tab}--basepak-name [name]
+	${tab}${tab}Use this name as base dpk base name, also used for the mod pak.
+
 	Target can be:
 
 	${tab}vm
-	${tab}${tab}build virtual machine
+	${tab}${tab}Build a dpk with the game code virtual machine.
+
+	${tab}base
+	${tab}${tab}Build the base dpk.
+
+	${tab}mod
+	${tab}${tab}Build the base dpk with game code virtual machine.
 
 	${tab}linux-i686
 	${tab}${tab}build linux x86 engine
@@ -230,15 +252,26 @@ cleanVmBuildDir () {
 }
 
 package () {
+	local extend_archive='false'
+	if [ "${1}" = '--extend' ]
+	then
+		extend_archive='true'
+		shift
+	fi
+
 	local archive_format="${1}"
 	local archive_filename="${2}"
 	local content_dir="${3}"
 
 	(
 		cd "${content_dir}"
+
+		if ! "${extend_archive}"
+		then
 		if [ -f "${archive_filename}" ]
 		then
-			rm -v "${archive_filename}"
+				rm "${archive_filename}"
+			fi
 		fi
 
 		7z -mx='9' -t"${archive_format}" a "${archive_filename}" .
@@ -285,6 +318,114 @@ printVersion () {
 	echo "${tag_string}${date_string}${ref_string}${dirt_string}"
 }
 
+fakeUrcheonBuildFile () {
+	# It is assumed the file path is relative to the current directory
+	# and stored in the current directory.
+	local file_path="${1}"
+	local destination_dir="${2}"
+	local dir_name="$(dirname "${file_path}")"
+
+	mkdir -p "${destination_dir}/${dir_name}"
+	cp -a "${file_path}" "${destination_dir}/${file_path}"
+}
+
+export -f fakeUrcheonBuildFile
+
+fakeUrcheon () {
+	printWarning 'Badly emulating Urcheon.'
+
+	local target_build_dir="${1}"
+	local archive_filename="${2}"
+	local content_dir="${3}"
+
+	(
+		cd "${content_dir}"
+
+		declare -a filter_options
+
+		printWarning 'Badly emulating Urcheon pakignore processing.'
+		# HACK: File extensions known to be ignored
+		# from unvanquished_src.dpkdir on 2022-09-10.
+		printWarning 'Badly emulating Urcheon known dirt file processing.'
+		local ignore_filter="$(mktemp)"
+		cat > "${ignore_filter}" <<-EOF
+		# Some Urcheon ignored files from per-game file profile.
+		*.xcf
+		*.xcf.*
+		*.svg
+		# Some Urcheon ignored files from known dirt files.
+		Thumbs.db
+		__MACOSX
+		*.DS_Store
+		.*.swp
+		*~
+		EOF
+
+		exclude_options=(--exclude-from="${ignore_filter}")
+
+		# HACK: This may not be the same algorithm as git.
+		if [ -f '.pakignore' ]
+		then
+			printWarning 'Badly emulating Urcheon pakignore processing.'
+			exclude_options+=(--exclude-from='.pakignore')
+		fi
+
+		# HACK: It assumes all deleted files are from the current package.
+		local deleted_file='false'
+		if [ -f 'DELETED' ]
+		then
+			printWarning 'Badly emulating Urcheon DELETED processing.'
+			deleted_file='true'
+			
+			local ignore_deleted="$(mktemp)"
+			awk '{print $2}' < 'DELETED' > "${ignore_deleted}"
+			exclude_options+=(--exclude-from="${ignore_deleted}")
+		fi
+
+		mkdir -p "${target_build_dir}"
+
+		printWarning 'Badly emulating Urcheon file building.'
+		# HACK: files are copied without any check for compatibility
+		# neither any format conversion.
+		git ls-files "${exclude_options[@]}" -cmo \
+		| grep -E -v '\.gitignore$|^\.pakinfo' \
+		| sort \
+		| xargs -r -I{} -P1 \
+			/usr/bin/env bash "${shell_options[@]}" \
+				-c "fakeUrcheonBuildFile {} ${target_build_dir} || exit 255" fakeUrcheonBuildFile
+
+		printWarning 'Badly emulating Urcheon file packaging.'
+		package 'zip' "${archive_filename}" "${target_build_dir}"
+
+		rm "${ignore_filter}"
+	)
+}
+
+runUrcheon () {
+	local target_build_dir="${1}"
+	local archive_filename="${2}"
+	local content_dir="${3}"
+
+	declare -a build_options
+
+	if [ -n "${old_reference}" ]
+	then
+		build_options=(--reference "${old_reference}")
+	fi
+
+	urcheon \
+		--test-dir "${target_build_dir}" \
+		build \
+		"${build_options[@]}" \
+		"${content_dir}"
+
+	urcheon \
+		--test-dir "${target_build_dir}" \
+		--pak-file "${archive_filename}" \
+		package \
+		"${content_dir}"
+}
+
 build () {
 	local job_count="${1}"
 	local write_version_string="${2}"
@@ -298,8 +439,8 @@ build () {
 
 	local engine_archive_format='zip'
 	local symbol_archive_format='7z'
-	local vmpak_archive_format='zip'
-	local vmpak_archive_extension='dpk'
+	local pak_archive_format='zip'
+	local pak_archive_extension='dpk'
 
 	local build_dir="${root_dir}/build"
 	local release_dir="${build_dir}/release"
@@ -313,6 +454,7 @@ build () {
 	local engine_symbolize_list=''
 
 	local build_vm='false'
+	local build_base='false'
 	local build_engine='false'
 
 	local system_linux='false'
@@ -332,6 +474,14 @@ build () {
 	case "${target}" in
 		'vm')
 			build_vm='true'
+			dumpsyms_relpath=linux/dump_syms/dump_syms
+			;;
+		'base')
+			build_base='true'
+			;;
+		'mod')
+			build_vm='true'
+			build_base='true'
 			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
 		'linux-'*)
@@ -363,7 +513,7 @@ build () {
 	esac
 
 	local target_root_dir="${build_dir}/target"
-	local target_build_dir="${target_root_dir}/${target}"
+	local target_build_dir="${target_root_dir}/${target/mod/vm}"
 	local content_dir="${target_build_dir}/content"
 	local symbol_dir="${target_build_dir}/${symbol_archive_basename}"
 	local symbol_archive_filename="${target_build_dir}/${symbol_archive_basename}.${symbol_archive_format}"
@@ -427,14 +577,20 @@ build () {
 	local cmake_opts='-DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_GAME_NATIVE_EXE=OFF'
 	local cmake_cflags=''
 
+	produce_symbols='true'
+
 	if "${system_macos}"
 	then
+		produce_symbols='false'
 		PATH="${PATH}:/Applications/CMake.app/Contents/bin"
 		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF"
-		produce_symbols=false
 	else
 		cmake_opts="${cmake_opts} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_BREAKPAD=ON"
-		produce_symbols=true
+	fi
+
+	if "${build_base}" && ! "${build_vm}"
+	then
+		produce_symbols='false'
 	fi
 
 	if "${system_macos}" && "${arch_amd64}"
@@ -442,9 +598,27 @@ build () {
 		cmake_opts="${cmake_opts} -DCMAKE_OSX_ARCHITECTURES=x86_64"
 	fi
 
+	if "${build_base}"
+	then
+		local dpk_dir="$(find "${root_dir}/pkg" -type d -name '*_src.dpkdir' -print -quit)"
+
+		if [ -n "${basepak_name}" ]
+		then
+			basepak_archive_basename="${basepak_name}"
+		else
+			basepak_archive_basename="$(basename "${dpk_dir}" | cut -f1 -d'_')"
+		fi
+	fi
+
 	if "${build_vm}"
 	then
+		if [ -n "${vmpak_name}" ]
+		then
+			vmpak_archive_basename="${vmpak_name}"
+		else
 		vmpak_archive_basename='vm'
+		fi
+
 		cmake_opts="${cmake_opts} -DBUILD_GAME_NACL=ON -DBUILD_GAME_NACL_NEXE=ON -DBUILD_CGAME=ON -DBUILD_SGAME=ON -DBUILD_CLIENT=OFF -DBUILD_TTY_CLIENT=OFF -DBUILD_SERVER=OFF"
 	fi
 
@@ -638,6 +812,39 @@ build () {
 		fi
 	fi
 
+	if "${build_base}"
+	then
+		# Reuse vmpak_version_string on purpose.
+		basepak_archive_filename="${release_dir}/${basepak_archive_basename}${vmpak_version_string}.${pak_archive_extension}"
+
+		if [ -f "${basepak_archive_filename}" ]
+		then
+			rm -v "${basepak_archive_filename}"
+		fi
+
+		# make base package
+		dpk_build_dir="${target_build_dir}"
+
+		if "${build_vm}"
+		then
+			local dpk_build_dir="${target_root_dir}/dpk"
+
+			if [ -d "${dpk_build_dir}" ]
+			then
+				rm -r "${dpk_build_dir}"
+			fi
+
+			mkdir -pv "${dpk_build_dir}"
+		fi
+
+		if "${fake_urcheon}"
+		then
+			fakeUrcheon "${dpk_build_dir}" "${basepak_archive_filename}" "${dpk_dir}"
+		else
+			runUrcheon "${dpk_build_dir}" "${basepak_archive_filename}" "${dpk_dir}"
+		fi
+	fi
+
 	if "${build_vm}"
 	then
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
@@ -685,14 +892,16 @@ build () {
 
 		# make vm package
 
-		vmpak_archive_filename="${release_dir}/${vmpak_archive_basename}${vmpak_version_string}.${vmpak_archive_extension}"
-
-		if [ -f "${vmpak_archive_filename}" ]
+		if "${build_base}"
 		then
-			rm -v "${vmpak_archive_filename}"
-		fi
+			vmpak_archive_filename="${basepak_archive_filename}"
 
-		package "${vmpak_archive_format}" "${vmpak_archive_filename}" "${content_dir}"
+			package --extend "${pak_archive_format}" "${vmpak_archive_filename}" "${content_dir}"
+		else
+			vmpak_archive_filename="${release_dir}/${vmpak_archive_basename}${vmpak_version_string}.${pak_archive_extension}"
+
+			package "${pak_archive_format}" "${vmpak_archive_filename}" "${content_dir}"
+		fi
 
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
 		cleanVmBuildDir "${content_dir}" "${symbol_archive_basename}"
@@ -776,11 +985,21 @@ parallel_target='false'
 write_version_string='false'
 write_username_string='false'
 target_list=''
+needs_urcheon='false'
+fake_urcheon='false'
+old_reference=''
+vmpak_name=''
+basepak_name=''
 
 while [ -n "${1:-}" ]
 do
 	case "${1}" in
-	'vm'|'linux-amd64'|'linux-i686'|'macos-amd64'|'windows-amd64'|'windows-i686')
+		'base'|'mod')
+			target_list="${target_list} ${1}"
+			needs_urcheon='true'
+			shift
+			;;
+		'vm'|'linux-amd64'|'linux-i686'|'macos-amd64'|'windows-amd64'|'windows-i686')
 			target_list="${target_list} ${1}"
 			shift
 			;;
@@ -788,7 +1007,7 @@ do
 			throwError NOTIMPLEMENTED "unsupported target: ${1}"
 			;;
 		'-d')
-			set -x
+			shell_options+=(-x)
 			shift
 			;;
 		'-j'*)
@@ -807,6 +1026,43 @@ do
 			write_version_string='true'
 			shift
 			;;
+		'--fake-urcheon')
+			fake_urcheon='true'
+			shift
+			;;
+		'-r'|'--reference')
+			shift
+
+			if [ -z "${1:-}" ]
+			then
+				throwError BADREQUEST "missing old git reference"
+			fi
+
+			old_reference="${1}"
+			shift
+			;;
+		'--vmpak-name')
+			shift
+
+			if [ -z "${1:-}" ]
+			then
+				throwError BADREQUEST "missing vm pak name"
+			fi
+
+			vmpak_name="${1}"
+			shift
+			;;
+		'--basepak-name')
+			shift
+
+			if [ -z "${1:-}" ]
+			then
+				throwError BADREQUEST "missing base pak name"
+			fi
+
+			basepak_name="${1}"
+			shift
+			;;
 		'-h'|'--help')
 			printHelp
 			;;
@@ -818,6 +1074,28 @@ do
 			;;
 	esac
 done
+
+if "${needs_urcheon}"
+then
+	if "${fake_urcheon}"
+	then
+		printWarning 'Forcing the bad emulation of Urcheon.'
+	else
+		if ! command -v 'urcheon' >/dev/null
+		then
+			throwError INTERNAL 'Urcheon not found, you can use --fake-urcheon as a workaround, file optimizations and delta pak feature are missing.'
+			fake_urcheon='false'
+		fi
+	fi
+
+	if "${fake_urcheon}"
+	then
+		if [ -n "${old_reference}" ]
+		then
+			throwError BADREQUEST 'Delta pak feature with --reference is only supported with Urcheon.'
+		fi
+	fi
+fi
 
 for target in ${target_list}
 do
