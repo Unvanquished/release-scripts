@@ -281,7 +281,7 @@ printVersion () {
 
 	if ! git diff --quiet 2>/dev/null
 	then
-		dirt_string='-dirty'
+		dirt_string='+dirty'
 	fi
 
 	echo "${tag_string}${date_string}${ref_string}${dirt_string}"
