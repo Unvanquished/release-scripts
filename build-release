@@ -79,6 +79,15 @@ printHelp () {
 	${tab}-v
 	${tab}${tab}write package version strings
 
+	${tab}--vm-name <STRING>
+	${tab}${tab}use STRING as custom vm package basename
+
+	${tab}--vm-deps <STRING>
+	${tab}${tab}adds a DEPS file to the vm package using STRING as content
+
+	${tab}--build-dir <DIRECTORY>
+	${tab}${tab}write built files in DIRECTORY
+
 	Target can be:
 
 	${tab}vm
@@ -231,7 +240,14 @@ cleanVmBuildDir () {
 	fi
 }
 
-package () {
+packageDir () {
+	local append='false'
+	if [ "${1}" = '--append' ]
+	then
+		append='true'
+		shift
+	fi
+
 	local archive_format="${1}"
 	local archive_filename="${2}"
 	local content_dir="${3}"
@@ -240,7 +256,10 @@ package () {
 		cd "${content_dir}"
 		if [ -f "${archive_filename}" ]
 		then
-			rm -v "${archive_filename}"
+			if ! "${append}"
+			then
+				rm -v "${archive_filename}"
+			fi
 		fi
 
 		7z -mx='9' -t"${archive_format}" a "${archive_filename}" .
@@ -303,7 +322,7 @@ build () {
 	local vmpak_archive_format='zip'
 	local vmpak_archive_extension='dpk'
 
-	local build_dir="${root_dir}/build"
+	local build_dir="${build_dir:-${root_dir}/build}"
 	local release_dir="${build_dir}/release"
 
 	local vm_kind_list='cgame sgame'
@@ -456,7 +475,7 @@ build () {
 
 	if "${build_vm}"
 	then
-		vmpak_archive_basename='vm'
+		vmpak_archive_basename="${vmpak_basename}"
 		cmake_opts="${cmake_opts} -DBUILD_GAME_NACL=ON -DBUILD_GAME_NACL_NEXE=ON -DBUILD_CGAME=ON -DBUILD_SGAME=ON -DBUILD_CLIENT=OFF -DBUILD_TTY_CLIENT=OFF -DBUILD_SERVER=OFF"
 	fi
 
@@ -701,7 +720,7 @@ build () {
 
 		# compress vm symbols
 
-		package "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
+		packageDir "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
 
 		cp -v "${symbol_archive_filename}" "${content_dir}/${symbol_archive_basename}.${symbol_archive_format}"
 
@@ -714,7 +733,16 @@ build () {
 			rm -v "${vmpak_archive_filename}"
 		fi
 
-		package "${vmpak_archive_format}" "${vmpak_archive_filename}" "${content_dir}"
+		packageDir "${vmpak_archive_format}" "${vmpak_archive_filename}" "${content_dir}"
+
+		if [ -n "${vmpak_deps_content}" ]
+		then
+			local temp_deps_dir="$(mktemp -d)"
+			printf "${vmpak_deps_content}" > "${temp_deps_dir}/DEPS"
+			packageDir --append "${vmpak_archive_format}" "${vmpak_archive_filename}" "${temp_deps_dir}"
+			rm "${temp_deps_dir}/DEPS"
+			rmdir "${temp_deps_dir}"
+		fi
 
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
 		cleanVmBuildDir "${content_dir}" "${symbol_archive_basename}"
@@ -778,7 +806,7 @@ build () {
 		then
 			# compress engine symbols
 
-			package "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
+			packageDir "${symbol_archive_format}" "${symbol_archive_filename}" "${symbol_dir}"
 
 			cp -v "${symbol_archive_filename}" "${content_dir}/${symbol_archive_basename}-${target}.${symbol_archive_format}"
 		fi
@@ -787,7 +815,7 @@ build () {
 
 		engine_archive_filename="${release_dir}/${engine_archive_basename}${engine_version_string}.${engine_archive_format}"
 
-		package "${engine_archive_format}" "${engine_archive_filename}" "${content_dir}"
+		packageDir "${engine_archive_format}" "${engine_archive_filename}" "${content_dir}"
 
 		cleanSymbols "${symbol_dir}" "${symbol_archive_filename}"
 		cleanEngineBuildDir "${content_dir}"
@@ -805,6 +833,8 @@ parallel_target='false'
 write_version_string='false'
 write_username_string='false'
 target_list=''
+vmpak_basename='vm'
+vmpak_deps_content=''
 
 while [ -n "${1:-}" ]
 do
@@ -834,6 +864,36 @@ do
 			;;
 		'-v')
 			write_version_string='true'
+			shift
+			;;
+		'--vm-name')
+			shift
+			case "${1:-}" in
+				''|'-'*)
+					throwError BADREQUEST "missing vm name"
+				;;
+			esac
+			vmpak_basename="${1}"
+			shift
+			;;
+		'--vm-deps')
+			shift
+			case "${1:-}" in
+				''|'-'*)
+					throwError BADREQUEST "missing DEPS content string"
+				;;
+			esac
+			vmpak_deps_content="${1}"
+			shift
+			;;
+		'--build-dir')
+			shift
+			case "${1:-}" in
+				''|'-'*)
+					throwError BADREQUEST "missing build dir"
+				;;
+			esac
+			build_dir="$(realpath "${1}")"
 			shift
 			;;
 		'-h'|'--help')
