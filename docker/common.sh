@@ -35,8 +35,3 @@ _error () {
 	echo "${1}" >&2
 	exit 1
 }
-
-if [ "$(uname -s)" != 'Linux' -o "$(uname -m)" != 'x86_64' ]
-then
-	_error "This script must run on amd64 Linux system"
-fi

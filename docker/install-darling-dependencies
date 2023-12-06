@@ -30,24 +30,9 @@ if [ ! -f /darling-installed ]
 then
 	export DPREFIX=/darling-prefix
 
-	echo 'y' | _exec darling shell xcode-select --install
-
-	_exec darling shell touch /.dockerenv
-
-	_exec curl -fsSL -o brew-install \
-		'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh'
-
-	# See https://docs.brew.sh/Installation
-	export NONINTERACTIVE=1
-
-	_exec darling shell ./brew-install
-
-	_exec darling shell git \
-		-C '/usr/local/Homebrew/Library/Taps/homebrew/homebrew-core' \
-		checkout '103f18b14fbe28e2ff10a39cae19a79a54d636ab'
-
-	# curl is already available
-	_exec darling shell brew install p7zip cmake
+	cp "$(dirname "${BASH_SOURCE[0]}")/common.sh" .
+	cp "$(dirname "${BASH_SOURCE[0]}")/install-brew-and-packages" .
+	_exec darling shell ./install-brew-and-packages
 
 	_exec touch /darling-installed
 fi
