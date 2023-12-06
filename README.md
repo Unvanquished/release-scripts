@@ -70,6 +70,10 @@ options:
 
 ```
 
+## Requirements
+
+You need docker to use the `docker-build` script. To build the `macos-amd64` target, `docker` should be configured to use the [`btrfs` storage driver](https://docs.docker.com/storage/storagedriver/btrfs-driver/) since [`darling` does not run over overlayfs](https://docs.darlinghq.org/build-instructions.html#file-system-support).
+
 
 ## Building with the simple Dockerfile
 
