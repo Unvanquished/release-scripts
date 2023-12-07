@@ -47,7 +47,8 @@ do
 		# ogg, opus, opusfile: We need to build them ourselve when building
 		# both amd64 and arm64 at the same time because Debian buster's opus
 		# static libs are not multiarch compatible.
-		_exec ./build.sh "${target}-default" ogg opus opusfile curl sdl2 glew openal ncurses naclsdk install
+		# webp: We want to make sure we use the version we want to use.
+		_exec ./build.sh "${target}-default" ogg opus opusfile curl sdl2 glew webp openal ncurses naclsdk install
 		;;
 	esac
 done
