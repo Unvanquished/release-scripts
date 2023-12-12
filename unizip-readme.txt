@@ -8,25 +8,20 @@ NOTE: In Windows Explorer and many Linux file browsers, using the
 "Extract all" function creates an unwanted extra directory, so it is better
 to put the archive's files into this directory using copy and paste.
 
-Engine archives are named like <system>-<architecture>.zip
-
-System is either, linux, windows, or macos.
-
-Architecture is either:
-
-- amd64: 64-bit x86 processor
-- i686: 32-bit x86 processor
-- arm64: 64-bit arm processor
-- armhf: 32-bit arm processor with hardware float
-
-For example windows-amd64.zip is the engine archive for running
-the game on the Windows operating system for 64-bit x86 computers.
+Archive for each operating system:
+	Linux, 64-bit x86 (a.k.a. x86-64; most common):     linux-amd64.zip
+	Linux, 32-bit x86 (very old computers):             linux-i686.zip
+	Linux, 64-bit ARM (a.k.a. AArch64):                 linux-arm64.zip
+	Linux, 32-bit ARM with hardware float:              linux-armhf.zip
+	Linux, 32-bit ARM with soft float (armel):          not supported
+	Windows, 64-bit (a.k.a x64):                        windows-amd64.zip
+	Windows, 32-bit (some low-end computers):           windows-i686.zip
+	MacOS (either Intel or Apple Silicon):              macos-amd64.zip
 
 Executable name for each operating system:
-
-- Linux: daemon
-- Windows: daemon.exe
-- macOS: Unvanquished.app
+	Linux:      daemon
+	Windows:    daemon.exe
+	macOS:      Unvanquished.app
 
 Happy Fragging :)
 
