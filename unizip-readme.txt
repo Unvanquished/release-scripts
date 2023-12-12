@@ -4,6 +4,10 @@ To run the game, extract the engine archive for your operating system
 into this subdirectory, so the files are right outside the pkg/ directory.
 Then, run the executable extracted from the archive.
 
+NOTE: In Windows Explorer and many Linux file browsers, using the
+"Extract all" function creates an unwanted extra directory, so it is better
+to put the archive's files into this directory using copy and paste.
+
 Engine archives are named like <system>-<architecture>.zip
 
 System is either, linux, windows, or macos.
