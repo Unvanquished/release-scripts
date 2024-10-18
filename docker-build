@@ -183,7 +183,7 @@ def main():
         targets_env="--env=targets={}".format(" ".join(common_target_list))
 
         # Install Debian and dependencies.
-        docker.run("build", ["unvanquished-common-system", targets_arg, reference_arg])
+        docker.run("build", ["unvanquished-common-system", targets_arg])
 
         # Clone source repositories and build external dependencies.
         docker.run("build", ["unvanquished-common-source", targets_arg, reference_arg])
@@ -202,7 +202,7 @@ def main():
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
         # Install Ubuntu, Darling, Xcode and other dependencies.
-        docker.run("build", ["unvanquished-darling-system", targets_arg, reference_arg])
+        docker.run("build", ["unvanquished-darling-system", targets_arg])
 
         after, err = docker.run("inspect", inspect_system_command_list,
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
