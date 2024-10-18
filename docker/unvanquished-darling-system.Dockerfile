@@ -11,9 +11,6 @@ RUN test -n "${targets}"
 COPY docker/install-system-dependencies /docker
 RUN /docker/install-system-dependencies
 
-ARG reference
-RUN test -n "${reference}"
-
 COPY docker/clone-repositories /docker
 
 COPY docker/build-targets /docker
