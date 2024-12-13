@@ -223,6 +223,7 @@ cleanEngineBuildDir () {
 
 	if [ -e "${content_dir}" ]
 	then
+		find "${content_dir}" -type l -exec rm -v {} \;
 		find "${content_dir}" -type f -exec rm -v {} \;
 		find "${content_dir}" -depth -type d -exec rmdir {} \;
 	fi
