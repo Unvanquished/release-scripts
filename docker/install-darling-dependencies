@@ -31,8 +31,8 @@ then
 	export DPREFIX=/darling-prefix
 
 	cp "$(dirname "${BASH_SOURCE[0]}")/common.sh" .
-	cp "$(dirname "${BASH_SOURCE[0]}")/install-brew-and-packages" .
-	_exec darling shell ./install-brew-and-packages
+	cp "$(dirname "${BASH_SOURCE[0]}")/install-xcode-and-packages" .
+	_exec darling shell ./install-xcode-and-packages
 
 	_exec touch /darling-installed
 fi

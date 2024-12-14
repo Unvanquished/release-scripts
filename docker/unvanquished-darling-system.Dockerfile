@@ -16,6 +16,6 @@ COPY docker/clone-repositories /docker
 COPY docker/build-targets /docker
 
 COPY docker/install-darling-dependencies /docker
-COPY docker/install-brew-and-packages /docker
+COPY docker/install-xcode-and-packages /docker
 
 COPY build-release /
