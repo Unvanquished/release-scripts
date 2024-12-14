@@ -1,0 +1,29 @@
+#! /usr/bin/env bash
+
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+cmake_version='3.16.9'
+cmake_dir="cmake-${cmake_version}-Darwin-x86_64"
+cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
+
+nproc="$(sysctl -n hw.logicalcpu)"
+
+_exec curl --output cmake.tgz --location "${cmake_url}"
+_exec tar -xf cmake.tgz
+_exec rm cmake.tgz
+_exec mv "${cmake_dir}/CMake.app/Contents" /cmake
+_exec rm -r "${cmake_dir}"
+_exec ln -s /cmake/bin/cmake /usr/bin/cmake
+
+sevenzip_version='2409'
+sevenzip_url="https://7-zip.org/a/7z${sevenzip_version}-mac.tar.xz"
+
+_exec curl --output /sevenzip.txz --location "${sevenzip_url}"
+_exec mkdir /sevenzip
+_exec tar -C /sevenzip -xf /sevenzip.txz
+_exec rm /sevenzip.txz
+_exec ln -s /sevenzip/7zz /usr/bin/7z
+
+echo 'y' | _exec xcode-select --install
+
+_exec touch /.dockerenv
