@@ -115,8 +115,9 @@ def main():
     parser.add_argument("--clean", dest="clean", help="Delete previous target and universal zip builds.", action="store_true")
     parser.add_argument("--prune", dest="prune", help="Delete all docker images from previous target builds.", action="store_true")
     parser.add_argument("--reimage", dest="reimage", help="Rebuild the system docker images for the targets to build.", action="store_true")
-    parser.add_argument("--reference", dest="reference", metavar="REFERENCE", nargs='?', help="Git reference for targets to build.")
-    parser.add_argument("--targets", dest="targets", metavar="TARGETS", nargs='+', help="List of targets. Requires a reference. Available targets: {}".format(known_target_option_list))
+    parser.add_argument("--reference", dest="reference", metavar="REFERENCE", nargs='?', default="default", help="Git reference for targets to build.")
+    parser.add_argument("--engine-reference", dest="engine_reference", metavar="ENGINE_REFERENCE", nargs='?', default="default", help="Git reference for engine targets to build.")
+    parser.add_argument("--targets", dest="targets", metavar="TARGETS", nargs='+', help="List of targets. Available targets: {}".format(known_target_option_list))
     parser.add_argument("--unizip", dest="unizip", help="Make an universal zip out of built targets.", action="store_true")
     parser.add_argument("--chown", dest="chown", help="Change ownership of produced files, this option should never be needed as other tasks are expected to do it.", action="store_true")
     parser.add_argument("--docker", dest="docker", metavar="PATH", default="docker", help="Path to the docker binary. Default: %(default)s.")
@@ -124,9 +125,6 @@ def main():
     args = parser.parse_args()
 
     docker = Docker(args.docker)
-
-    if args.targets and not args.reference:
-        error("Building a target requires a reference.")
 
     target_list = []
 
@@ -150,7 +148,8 @@ def main():
     print("Clean: {}".format(str(args.clean)))
     print("Prune: {}".format(str(args.prune)))
     print("Reimage: {}".format(str(args.reimage)))
-    print("Reference: {}".format(str(args.reference)))
+    print("reference: {}".format(str(args.reference)))
+    print("Engine reference: {}".format(str(args.engine_reference)))
     print("Targets: {}".format(target_list_string))
     print("Unizip: {}".format(str(args.unizip)))
     print("Chown: {}".format(str(args.chown)))
@@ -174,6 +173,7 @@ def main():
 
     if target_list:
         reference_arg="--build-arg=reference={}".format(args.reference)
+        engine_reference_arg = "--build-arg=engine_reference={}".format(args.engine_reference)
 
         if args.reimage:
             docker.run("rmi", ["unvanquished-common-system"], stderr=subprocess.DEVNULL)
@@ -186,7 +186,7 @@ def main():
         docker.run("build", ["unvanquished-common-system", targets_arg])
 
         # Clone source repositories and build external dependencies.
-        docker.run("build", ["unvanquished-common-source", targets_arg, reference_arg])
+        docker.run("build", ["unvanquished-common-source", targets_arg, reference_arg, engine_reference_arg])
 
         # Build the targets.
         docker.run("mrun", ["--rm", targets_env,
@@ -243,7 +243,7 @@ def main():
             docker.run("commit", [container_id, "unvanquished-darling-darling"])
 
         # Clone source repositories.
-        docker.run("build", ["unvanquished-darling-source", reference_arg])
+        docker.run("build", ["unvanquished-darling-source", reference_arg, engine_reference_arg])
 
         # Build the targets.
         docker.run("mrun", ["--privileged", "--rm", targets_env,
