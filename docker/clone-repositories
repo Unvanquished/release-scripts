@@ -26,15 +26,22 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-# Assume the desired revision of Unvanquished is near the tip
-# of some branch (last 20 commits)
-_exec git clone --depth 20 --no-single-branch \
-	'https://github.com/Unvanquished/Unvanquished.git' '/Unvanquished'
+_exec git clone 'https://github.com/Unvanquished/Unvanquished.git' '/Unvanquished'
 
 cd '/Unvanquished'
 
-_exec git checkout "${reference}"
+if [ "${reference:-default}" != 'default' ]
+then
+	_exec git checkout "${reference}"
+fi
 
-_exec git submodule update --init --depth 1 --recursive
+_exec git submodule update --init --recursive
+
+if [ "${engine_reference:-default}" != 'default' ]
+then
+	_exec git -C daemon checkout "${engine_reference}"
+
+	_exec git -C daemon submodule update --init --recursive
+fi
 
 _exec mkdir -p '/Unvanquished/build/release'

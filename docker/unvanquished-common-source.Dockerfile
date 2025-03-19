@@ -4,7 +4,8 @@ ARG targets
 RUN test -n "${targets}"
 
 ARG reference
-RUN test -n "${reference}"
+
+ARG engine_reference
 
 RUN /docker/clone-repositories
 

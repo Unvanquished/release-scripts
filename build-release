@@ -480,6 +480,8 @@ build () {
 		cmake_opts="${cmake_opts} -DBUILD_GAME_NACL=ON -DBUILD_GAME_NACL_NEXE=ON -DBUILD_CGAME=ON -DBUILD_SGAME=ON -DBUILD_CLIENT=OFF -DBUILD_TTY_CLIENT=OFF -DBUILD_SERVER=OFF"
 	fi
 
+	local daemon_dir="${root_dir}/daemon"
+
 	if "${build_engine}"
 	then
 		engine_archive_basename="${target}"
@@ -498,7 +500,7 @@ build () {
 			fi
 
 			strip="${mingw_arch_prefix}-w64-mingw32-strip"
-			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-mingw${bitness}.cmake"
+			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${daemon_dir}/cmake/cross-toolchain-mingw${bitness}.cmake"
 			# unused
 			# cmake_opts="${cmake_opts} -DPKG_CONFIG_EXECUTABLE=${mingw_arch_prefix}-w64-mingw32-pkg-config"
 		fi
@@ -578,7 +580,7 @@ build () {
 			fi
 
 			strip="${mingw_arch_prefix}-w64-mingw32-strip"
-			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${root_dir}/daemon/cmake/cross-toolchain-mingw${bitness}.cmake"
+			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${daemon_dir}/cmake/cross-toolchain-mingw${bitness}.cmake"
 			# unused
 			# cmake_opts="${cmake_opts} -DPKG_CONFIG_EXECUTABLE=${mingw_arch_prefix}-w64-mingw32-pkg-config"
 		fi
@@ -599,7 +601,7 @@ build () {
 	then
 		# configuration
 
-		cmake -H"${root_dir}" \
+		cmake -H"${daemon_dir}" \
 			-B"${target_build_dir}" \
 			-G"Unix Makefiles" \
 			-D"CMAKE_C_FLAGS=${cmake_cflags}" \
@@ -607,11 +609,6 @@ build () {
 			-D"CMAKE_EXE_LINKER_FLAGS=${cmake_cflags}" \
 			${cmake_opts} \
 		|| throwError INTERNAL "${target} cmake failed"
-	fi
-
-	if "${build_vm}" || "${build_engine}"
-	then
-		daemon_dir="$(cmake -H"${root_dir}" -B"${target_build_dir}" -LH | grep '^DAEMON_DIR:' | sed -e 's/[^=]*=//')"
 	fi
 
 	if "${build_vm}"

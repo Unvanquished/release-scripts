@@ -1,6 +1,7 @@
 FROM unvanquished-darling-darling
 
 ARG reference
-RUN test -n "${reference}"
+
+ARG engine_reference
 
 RUN /docker/clone-repositories
