@@ -456,7 +456,7 @@ build () {
 	mkdir -pv "${target_build_dir}"
 	mkdir -pv "${release_dir}"
 
-	local cmake_opts='-DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_GAME_NATIVE_EXE=OFF'
+	local cmake_opts='-DBUILD_GAME_NATIVE_DLL=OFF -DBUILD_GAME_NATIVE_EXE=OFF -DUSE_PRECOMPILED_HEADER=OFF'
 	local cmake_cflags=''
 
 	if "${system_macos}"
