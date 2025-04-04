@@ -153,6 +153,17 @@ _exec apt-get update
 
 _exec apt-get install --yes "${system_packages[@]}"
 
+# Install newer cmake on Debian Buster.
+_exec apt-get install --yes lsb-release
+if [ "$(lsb_release -sc)" = 'buster' ]
+then
+	_exec apt-get install --yes ca-certificates.
+	echo 'deb https://archive.debian.org/debian-archive/debian buster-backports main' \
+	| _exec tee '/etc/apt/sources.list.d/debian-buster-backports.list' >/dev/null
+	_exec apt-get update
+	_exec apt-get install --yes -t buster-backports cmake
+fi
+
 for alternative_pair in "${alternative_pairs[@]}"
 do
 	_exec update-alternatives --set ${alternative_pair}
