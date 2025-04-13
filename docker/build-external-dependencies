@@ -34,7 +34,11 @@ do
 	vm)
 		# HACK: naclsdk is installed twice when building
 		# both vm and linux-amd64-default.
-		_exec ./build.sh 'linux-amd64-default' naclsdk naclports install
+		_exec ./build.sh 'linux-amd64-default' naclsdk install
+		;;
+	linux-amd64)
+		# We currently only rebuild the nacl_loader on linux-amd64.
+		_exec ./build.sh "${target}-default" ogg opus opusfile curl sdl2 glew webp openal ncurses naclruntime naclsdk install
 		;;
 	linux-*)
 		# Build some static libraries in the cases the package manager
