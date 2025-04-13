@@ -28,10 +28,18 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 export DEBIAN_FRONTEND='noninteractive'
 
+# TODO: Remove scons and python3 onces the NaCl loader builds with CMake.
+# TODO: Remove clang onces the NaCl loader builds with GCC.
+# TODO: Remove unzip onces the NaCl loader archive uses another format than zip
+# or the build script is modified to use 7z when it is there.
 system_packages=(
 	git
 	curl
 	p7zip-full
+	scons
+	python3
+	clang
+	unzip
 )
 
 # Toolchain dependencies for Unvanquished, Daemon, external_packages, or build-release
