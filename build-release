@@ -263,7 +263,11 @@ packageDir () {
 			fi
 		fi
 
-		7z -mx='9' -t"${archive_format}" a "${archive_filename}" .
+		# Only store files, not folders, folders will be recreated on extraction.
+		local file_list="$(mktemp)"
+		find . -type f | cut -c3- | sort > "${file_list}"
+		7z -mx='9' -snl -t"${archive_format}" a "${archive_filename}" -i@"${file_list}"
+		rm "${file_list}"
 	)
 }
 
