@@ -1,4 +1,4 @@
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 
 # Toolchain dependencies for Unvanquished, Daemon, external_deps, or build-release
 ENV TOOLCHAIN_DEPS=' \

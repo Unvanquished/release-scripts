@@ -83,6 +83,7 @@ linux_generic_av_packages=(
 	libasound2-dev:native
 	libaudio-dev:native
 	libgl1-mesa-dev:native
+ 	libglu1-mesa-dev:native
 	libjack-jackd2-dev:native
 	libpulse-dev:native
 	libx11-dev:native
