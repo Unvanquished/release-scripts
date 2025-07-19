@@ -30,29 +30,22 @@ cd '/Unvanquished/daemon/external_deps'
 
 for target in ${targets}
 do
+	# For other architectures, the downloadable deps archive contains
+	# everything required.
 	case "${target}" in
 	vm)
 		# HACK: naclsdk is installed twice when building
 		# both vm and linux-amd64-default.
 		_exec ./build.sh 'linux-amd64-default' naclsdk install
 		;;
-	linux-amd64)
-		# We currently only rebuild the nacl_loader on linux-amd64.
-		_exec ./build.sh "${target}-default" ogg opus opusfile curl sdl2 glew webp openal ncurses naclruntime naclsdk install
-		;;
 	linux-*)
-		# Build some static libraries in the cases the package manager
-		# didn't provide a satisfactory one.
-		# openal, glew, ncurses: A static library is not provided.
-		# sdl2: The static library is configured to have non-optional
-		# dependencies on some dynamic libs.
+		# We now rebuild as much as libraries as possible so we get the
+		# updated libraries on every platform and we get what we expect.
+		# Also, some libraries may require us to rebuild them.
+		# sdl3: Libraries are configured with unneeded dynamic dependencies.
 		# curl: Static libraries are configured with unneeded protocols
 		# that have extra dynamic dependencies.
-		# ogg, opus, opusfile: We need to build them ourselve when building
-		# both amd64 and arm64 at the same time because Debian buster's opus
-		# static libs are not multiarch compatible.
-		# webp: We want to make sure we use the version we want to use.
-		_exec ./build.sh "${target}-default" ogg opus opusfile curl sdl2 glew webp openal ncurses naclsdk install
+		_exec ./build.sh "${target}-default" all install
 		;;
 	esac
 done

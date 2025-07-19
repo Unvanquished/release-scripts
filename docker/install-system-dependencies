@@ -62,21 +62,6 @@ game_toolchain_packages=(
 	python3-yaml
 )
 
-# Libraries statically linked into the Linux binaries of Daemon
-# Unfortunately the Debian buster opus static libraries are not multiarch:
-# libopus-dev:native libopusfile-dev:native
-linux_generic_static_packages=(
-	libfreetype6-dev:native
-	libgmp-dev:native
-	libjpeg-dev:native
-	libogg-dev:native
-	libpng-dev:native
-	libvorbis-dev:native
-	libwebp-dev:native
-	nettle-dev:native
-	zlib1g-dev:native
-)
-
 # These are needed for building Daemon or its dependencies but not statically
 # linked into the binary.
 # The display-related ones are relevant for SDL configuration and are taken from
@@ -141,7 +126,6 @@ do
 	esac
 done
 
-native_packages=("${linux_generic_static_packages[@]}")
 native_packages+=("${linux_generic_av_packages[@]}")
 
 for target in ${targets}
