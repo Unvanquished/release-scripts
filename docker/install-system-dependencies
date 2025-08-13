@@ -36,19 +36,22 @@ system_packages=(
 	git
 	curl
 	p7zip-full
-	scons
 	python3
 	clang
 	unzip
+	bzip2
+	xz-utils
 )
 
 # Toolchain dependencies for Unvanquished, Daemon, external_packages, or build-release
 # g++ also brings build dependencies needed by other compilers used in place of g++
 generic_toolchain_packages=(
 	g++
+	nasm
 	pkg-config
 	autoconf
 	cmake
+	scons
 	libtool
 	make
 	rsync
@@ -158,9 +161,11 @@ do
 	esac
 done
 
+install_extra=(--verbose-versions --yes)
+
 _exec apt-get update
 
-_exec apt-get install --yes "${system_packages[@]}"
+_exec apt-get install "${install_extra[@]}" "${system_packages[@]}"
 
 for alternative_pair in "${alternative_pairs[@]}"
 do
