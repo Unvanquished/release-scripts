@@ -507,7 +507,7 @@ build () {
 
 		if ${system_linux}
 		then
-			cmake_opts="${cmake_opts} -DUSE_STATIC_LIBS=1 -DOpenGL_GL_PREFERENCE=LEGACY"
+			cmake_opts="${cmake_opts} -DUSE_STATIC_LIBS=ON -DPREFER_EXTERNAL_LIBS=OFF -DOpenGL_GL_PREFERENCE=LEGACY"
 			engine_file_list="${engine_file_list} daemon daemonded daemon-tty crash_server nacl_helper_bootstrap nacl_loader"
 			engine_symbolize_list='daemon daemonded daemon-tty'
 			engine_strip_list='daemon daemonded daemon-tty crash_server'
