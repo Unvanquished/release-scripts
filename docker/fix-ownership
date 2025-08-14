@@ -28,6 +28,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 if [ -d '/Unvanquished/build/release' ]
 then
-	ownership="$(stat --format='%g.%u' '/Unvanquished/build/release')"
+	ownership="$(stat --format='%g:%u' '/Unvanquished/build/release')"
 	_exec chown -R "${ownership}" '/Unvanquished/build/release'
 fi
