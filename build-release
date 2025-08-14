@@ -462,7 +462,7 @@ build () {
 	if "${system_macos}"
 	then
 		PATH="${PATH}:/Applications/CMake.app/Contents/bin"
-		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.12 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF"
+		cmake_opts="${cmake_opts} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.14 -DCMAKE_BUILD_TYPE=Release -DUSE_BREAKPAD=OFF"
 		produce_symbols=false
 	else
 		cmake_opts="${cmake_opts} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_BREAKPAD=ON"
