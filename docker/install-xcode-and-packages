@@ -3,13 +3,12 @@
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 cmake_version='3.16.9'
-cmake_dir="cmake-${cmake_version}-Darwin-x86_64"
+cmake_system='Darwin-x86_64'
+cmake_dir="cmake-${cmake_version}-${cmake_system}"
 cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
 
-nproc="$(sysctl -n hw.logicalcpu)"
-
 _exec curl --output cmake.tgz --location "${cmake_url}"
-_exec tar -xf cmake.tgz
+_exec tar xf cmake.tgz
 _exec rm cmake.tgz
 _exec mv "${cmake_dir}/CMake.app/Contents" /cmake
 _exec rm -r "${cmake_dir}"
