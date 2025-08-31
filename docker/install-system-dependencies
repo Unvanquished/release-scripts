@@ -50,7 +50,6 @@ generic_toolchain_packages=(
 	nasm
 	pkg-config
 	autoconf
-	cmake
 	scons
 	libtool
 	make
@@ -208,5 +207,19 @@ do
 
 		_exec gdebi --non-interactive /darling.deb
 		;;
+	*)
+		if [ ! -d /cmake ]
+		then
+			cmake_version='3.31.8'
+			cmake_system='linux-x86_64'
+			cmake_dir="cmake-${cmake_version}-${cmake_system}"
+			cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
+
+			_exec curl --output cmake.tgz --location "${cmake_url}"
+			_exec tar xf cmake.tgz
+			_exec rm cmake.tgz
+			_exec mv "${cmake_dir}" /cmake
+			_exec ln -s /cmake/bin/cmake /usr/local/bin/cmake
+		fi
 	esac
 done
