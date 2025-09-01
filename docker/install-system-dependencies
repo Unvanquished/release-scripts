@@ -202,10 +202,14 @@ for target in ${targets}
 do
 	case "${target}" in
 	macos-*)
-		_exec curl --location --output /darling.deb \
-			'https://github.com/darlinghq/darling/releases/download/v0.1.20220929_update_sources_11_5/darling_0.1.20220929.focal_amd64.deb'
+		if [ ! -f /usr/bin/darling ]
+		then
+			darling_url='https://github.com/darlinghq/darling/releases/download/v0.1.20220929_update_sources_11_5/darling_0.1.20220929.focal_amd64.deb'
 
-		_exec gdebi --non-interactive /darling.deb
+			_exec curl --location --output /darling.deb "${darling_url}"
+			_exec gdebi --non-interactive /darling.deb
+			_exec rm /darling.deb
+		fi
 		;;
 	*)
 		if [ ! -d /cmake ]
