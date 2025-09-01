@@ -2,8 +2,8 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-cmake_version='3.16.9'
-cmake_system='Darwin-x86_64'
+cmake_version='3.28.6'
+cmake_system='macos-universal'
 cmake_dir="cmake-${cmake_version}-${cmake_system}"
 cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
 
