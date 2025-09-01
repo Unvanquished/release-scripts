@@ -43,11 +43,13 @@ known_target_list = [
 ]
 
 image_name_list = [
+    "unvanquished-common-system",
+    "unvanquished-common-source",
+    "unvanquished-mingw-system",
+    "unvanquished-mingw-source",
     "unvanquished-darling-system",
     "unvanquished-darling-darling",
     "unvanquished-darling-source",
-    "unvanquished-common-system",
-    "unvanquished-common-source",
     "unvanquished-unizip-system",
     "unvanquished-chown-system",
 ]
@@ -163,11 +165,14 @@ def main():
             docker.run("rmi", [image_name], stderr=subprocess.DEVNULL)
 
     common_target_list = []
+    windows_target_list = []
     macos_target_list = []
 
     for target_name in target_list:
         if target_name.startswith("macos-"):
             macos_target_list.append(target_name)
+        elif target_name.startswith("windows-"):
+            windows_target_list.append(target_name)
         else:
             common_target_list.append(target_name)
 
@@ -191,6 +196,20 @@ def main():
         # Build the targets.
         docker.run("mrun", ["--rm", targets_env,
             "unvanquished-common-source", "/docker/build-targets"])
+
+    if windows_target_list:
+        targets_arg="--build-arg=targets={}".format(" ".join(windows_target_list))
+        targets_env="--env=targets={}".format(" ".join(windows_target_list))
+
+        # Install Debian and dependencies.
+        docker.run("build", ["unvanquished-mingw-system", targets_arg])
+
+        # Clone source repositories and build external dependencies.
+        docker.run("build", ["unvanquished-mingw-source", targets_arg, reference_arg, engine_reference_arg])
+
+        # Build the targets.
+        docker.run("mrun", ["--rm", targets_env,
+            "unvanquished-mingw-source", "/docker/build-targets"])
 
     if macos_target_list:
         targets_arg="--build-arg=targets={}".format(" ".join(macos_target_list))
