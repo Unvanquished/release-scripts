@@ -538,14 +538,7 @@ build () {
 			if "${arch_i686}"
 			then
 				engine_file_list="${engine_file_list} nacl_loader-amd64.exe irt_core-amd64.nexe" # WOW64 support
-
-				if "${host_windows}"
-				then
-					# MSYS2 uses the DWARF exception flavor
-					special_dll='libgcc_s_dw2-1.dll'
-				else
-					special_dll='libgcc_s_sjlj-1.dll'
-				fi
+				special_dll='libgcc_s_dw2-1.dll'
 			else
 				special_dll='libgcc_s_seh-1.dll'
 			fi
