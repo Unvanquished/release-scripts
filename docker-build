@@ -43,13 +43,17 @@ known_target_list = [
 ]
 
 image_name_list = [
-    "unvanquished-common-system",
-    "unvanquished-common-source",
+    "unvanquished-linux-system",
+    "unvanquished-linux-deps",
+    "unvanquished-linux-source",
     "unvanquished-mingw-system",
     "unvanquished-mingw-source",
     "unvanquished-darling-system",
     "unvanquished-darling-darling",
     "unvanquished-darling-source",
+    "unvanquished-vm-system",
+    "unvanquished-vm-source",
+    "unvanquished-common-system",
     "unvanquished-unizip-system",
     "unvanquished-chown-system",
 ]
@@ -164,48 +168,54 @@ def main():
         for image_name in image_name_list:
             docker.run("rmi", [image_name], stderr=subprocess.DEVNULL)
 
-    common_target_list = []
+    linux_target_list = []
     windows_target_list = []
     macos_target_list = []
+    vm_target_list = []
 
     for target_name in target_list:
-        if target_name.startswith("macos-"):
-            macos_target_list.append(target_name)
+        if target_name.startswith("linux-"):
+            linux_target_list.append(target_name)
         elif target_name.startswith("windows-"):
             windows_target_list.append(target_name)
-        else:
-            common_target_list.append(target_name)
+        elif target_name.startswith("macos-"):
+            macos_target_list.append(target_name)
+        elif target_name == "vm":
+            vm_target_list.append(target_name)
 
     if target_list:
         reference_arg="--build-arg=reference={}".format(args.reference)
         engine_reference_arg = "--build-arg=engine_reference={}".format(args.engine_reference)
 
         if args.reimage:
-            docker.run("rmi", ["unvanquished-common-system"], stderr=subprocess.DEVNULL)
+            docker.run("rmi", ["unvanquished-linux-system"], stderr=subprocess.DEVNULL)
 
-    if common_target_list:
-        targets_arg="--build-arg=targets={}".format(" ".join(common_target_list))
-        targets_env="--env=targets={}".format(" ".join(common_target_list))
+    if linux_target_list:
+        targets_arg="--build-arg=targets={}".format(" ".join(linux_target_list))
+        targets_env="--env=targets={}".format(" ".join(linux_target_list))
 
         # Install Debian and dependencies.
-        docker.run("build", ["unvanquished-common-system", targets_arg])
+        docker.run("build", ["unvanquished-linux-system"])
 
-        # Clone source repositories and build external dependencies.
-        docker.run("build", ["unvanquished-common-source", targets_arg, reference_arg, engine_reference_arg])
+        # Clone source repositories.
+        docker.run("build", ["unvanquished-linux-source", reference_arg, engine_reference_arg])
+
+        # Build external dependencies.
+        docker.run("build", ["unvanquished-linux-deps", targets_arg])
 
         # Build the targets.
         docker.run("mrun", ["--rm", targets_env,
-            "unvanquished-common-source", "/docker/build-targets"])
+            "unvanquished-linux-deps", "/docker/build-targets"])
 
     if windows_target_list:
         targets_arg="--build-arg=targets={}".format(" ".join(windows_target_list))
         targets_env="--env=targets={}".format(" ".join(windows_target_list))
 
         # Install Debian and dependencies.
-        docker.run("build", ["unvanquished-mingw-system", targets_arg])
+        docker.run("build", ["unvanquished-mingw-system"])
 
-        # Clone source repositories and build external dependencies.
-        docker.run("build", ["unvanquished-mingw-source", targets_arg, reference_arg, engine_reference_arg])
+        # Clone source repositories.
+        docker.run("build", ["unvanquished-mingw-source", reference_arg, engine_reference_arg])
 
         # Build the targets.
         docker.run("mrun", ["--rm", targets_env,
@@ -221,7 +231,7 @@ def main():
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
         # Install Ubuntu, Darling, Xcode and other dependencies.
-        docker.run("build", ["unvanquished-darling-system", targets_arg])
+        docker.run("build", ["unvanquished-darling-system"])
 
         after, err = docker.run("inspect", inspect_system_command_list,
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -267,6 +277,20 @@ def main():
         # Build the targets.
         docker.run("mrun", ["--privileged", "--rm", targets_env,
             "unvanquished-darling-source", "/docker/build-targets"])
+
+    if vm_target_list:
+        targets_arg="--build-arg=targets={}".format(" ".join(vm_target_list))
+        targets_env="--env=targets={}".format(" ".join(vm_target_list))
+
+        # Install Debian and dependencies.
+        docker.run("build", ["unvanquished-vm-system"])
+
+        # Clone source repositories.
+        docker.run("build", ["unvanquished-vm-source", reference_arg, engine_reference_arg])
+
+        # Build the targets.
+        docker.run("mrun", ["--rm", targets_env,
+            "unvanquished-vm-source", "/docker/build-targets"])
 
     if args.unizip:
         # Install Debian.

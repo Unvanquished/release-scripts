@@ -33,11 +33,6 @@ do
 	# For other architectures, the downloadable deps archive contains
 	# everything required.
 	case "${target}" in
-	vm)
-		# HACK: naclsdk is installed twice when building
-		# both vm and linux-amd64-default.
-		_exec ./build.sh 'linux-amd64-default' naclsdk install
-		;;
 	linux-*)
 		# We now rebuild as much as libraries as possible so we get the
 		# updated libraries on every platform and we get what we expect.
