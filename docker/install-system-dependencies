@@ -28,31 +28,32 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 export DEBIAN_FRONTEND='noninteractive'
 
+linux_architectures=(amd64 i686 arm64 armhf)
+windows_architectures=(amd64 i686)
+macos_architectures=(amd64)
+
 # TODO: Remove scons and python3 onces the NaCl loader builds with CMake.
 # TODO: Remove clang onces the NaCl loader builds with GCC.
-# TODO: Remove unzip onces the NaCl loader archive uses another format than zip
+# TODO: Remove unzip onces the NaCl loader archive uses another format than zip.
 # or the build script is modified to use 7z when it is there.
 system_packages=(
-	git
+	bzip2
 	curl
+	git
 	p7zip-full
 	python3
-	clang
 	unzip
-	bzip2
 	xz-utils
 )
 
-# Toolchain dependencies for Unvanquished, Daemon, external_packages, or build-release
-# g++ also brings build dependencies needed by other compilers used in place of g++
+# Toolchain dependencies for Unvanquished, Daemon, external_packages, or build-release.
+# We removed the cmake package as it is installed from tarball.
 generic_toolchain_packages=(
-	g++
-	nasm
-	pkg-config
 	autoconf
 	scons
 	libtool
 	make
+	pkg-config
 	rsync
 )
 
@@ -86,64 +87,89 @@ linux_generic_av_packages=(
 
 declare -a alternative_pairs
 
-for target in ${targets}
-do
-	case "${target}" in
-	vm)
-		system_packages+=(${generic_toolchain_packages[@]})
-		system_packages+=(${game_toolchain_packages[@]})
-		;;
-	linux-amd64)
-		system_packages+=(${generic_toolchain_packages[@]})
-		;;
-	linux-i686)
-		system_packages+=(${generic_toolchain_packages[@]})
-		system_packages+=(g++-i686-linux-gnu binutils-multiarch)
-		;;
-	linux-arm64)
-		system_packages+=(${generic_toolchain_packages[@]})
-		system_packages+=(g++-aarch64-linux-gnu binutils-multiarch)
-		;;
-	linux-armhf)
-		system_packages+=(${generic_toolchain_packages[@]})
-		system_packages+=(g++-arm-linux-gnueabihf binutils-multiarch)
-		;;
-	windows-amd64)
-		system_packages+=(${generic_toolchain_packages[@]})
-		system_packages+=(g++-mingw-w64-x86-64)
-		alternative_pairs+=('x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix')
-		alternative_pairs+=('x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix')
-		;;
-	windows-i686)
-		system_packages+=(${generic_toolchain_packages[@]})
-		system_packages+=(g++-mingw-w64-i686)
-		alternative_pairs+=('i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix')
-		alternative_pairs+=('i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix')
-		;;
-	macos-*)
-		system_packages+=(gdebi-core)
-		;;
-	esac
-done
+build_vm="${build_vm:-false}"
+build_linux="${build_linux:-false}"
+build_windows="${build_windows:-false}"
+build_macos="${build_macos:-false}"
 
-native_packages+=("${linux_generic_av_packages[@]}")
+build_in_linux='false'
+build_in_darling='false'
+build_breakpad='false'
 
-for target in ${targets}
-do
-	case "${target}" in
-	'linux-'*)
-		arch_name="${target#*-}"
+if "${build_vm}"
+then
+	build_in_linux='true'
+	build_breakpad='true'
+
+	system_packages+=(${generic_toolchain_packages[@]})
+	system_packages+=(${game_toolchain_packages[@]})
+fi
+
+if "${build_linux}"
+then
+	build_in_linux='true'
+	build_breakpad='true'
+
+	system_packages+=(${generic_toolchain_packages[@]})
+
+	# The nasm package is required to build amd64 and i686 deps.
+	# The scons and clang packages are required for building the amd64 nacl loader.
+	system_packages+=(nasm scons clang)
+
+	# The no alias g++-x86-64-linux-gnu package on amd64 in Debian before
+	# Trixie, but we install g++ and we run on amd64 so this is fine.
+	system_packages+=(binutils-multiarch) 
+	# system_packages+=(g++-x86-64-linux-gnu)
+	system_packages+=(g++-i686-linux-gnu)
+	system_packages+=(g++-aarch64-linux-gnu)
+	system_packages+=(g++-arm-linux-gnueabihf)
+fi
+
+if "${build_windows}"
+then
+	build_in_linux='true'
+	build_breakpad='true'
+
+	system_packages+=(${generic_toolchain_packages[@]})
+
+	system_packages+=(nasm)
+
+	system_packages+=(g++-mingw-w64-x86-64)
+	alternative_pairs+=('x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix')
+	alternative_pairs+=('x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix')
+
+	system_packages+=(g++-mingw-w64-i686)
+	alternative_pairs+=('i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix')
+	alternative_pairs+=('i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix')
+fi
+
+if "${build_macos}"
+then
+	build_in_darling='true'
+
+	system_packages+=(gdebi-core)
+fi
+
+if "${build_breakpad}"
+then
+	# The breakpad dump_syms binaries are built with the native g++.
+	system_packages+=(g++)
+fi
+
+if "${build_linux}"
+then
+	for arch_name in "${linux_architectures[@]}"
+	do
 		arch_name="${arch_name/i686/i386}"
 
 		_exec dpkg --add-architecture "${arch_name}"
 
-		for native_package in "${native_packages[@]}"
+		for native_package in "${linux_generic_av_packages[@]}"
 		do
 			system_packages+=("${native_package//:native/:${arch_name}}")
 		done
-		;;
-	esac
-done
+	done
+fi
 
 install_extra=(--verbose-versions --yes)
 
@@ -198,32 +224,31 @@ do
 	_exec update-alternatives --set ${alternative_pair}
 done
 
-for target in ${targets}
-do
-	case "${target}" in
-	macos-*)
-		if [ ! -f /usr/bin/darling ]
-		then
-			darling_url='https://github.com/darlinghq/darling/releases/download/v0.1.20220929_update_sources_11_5/darling_0.1.20220929.focal_amd64.deb'
+if "${build_in_darling}"
+then
+	if [ ! -f /usr/bin/darling ]
+	then
+		darling_url='https://github.com/darlinghq/darling/releases/download/v0.1.20220929_update_sources_11_5/darling_0.1.20220929.focal_amd64.deb'
 
-			_exec curl --location --output /darling.deb "${darling_url}"
-			_exec gdebi --non-interactive /darling.deb
-			_exec rm /darling.deb
-		fi
-		;;
-	*)
-		if [ ! -d /cmake ]
-		then
-			cmake_version='3.31.8'
-			cmake_system='linux-x86_64'
-			cmake_dir="cmake-${cmake_version}-${cmake_system}"
-			cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
+		_exec curl --location --output /darling.deb "${darling_url}"
+		_exec gdebi --non-interactive /darling.deb
+		_exec rm /darling.deb
+	fi
+fi
 
-			_exec curl --output cmake.tgz --location "${cmake_url}"
-			_exec tar xf cmake.tgz
-			_exec rm cmake.tgz
-			_exec mv "${cmake_dir}" /cmake
-			_exec ln -s /cmake/bin/cmake /usr/local/bin/cmake
-		fi
-	esac
-done
+if "${build_in_linux}"
+then
+	if [ ! -d /cmake ]
+	then
+		cmake_version='3.31.8'
+		cmake_system='linux-x86_64'
+		cmake_dir="cmake-${cmake_version}-${cmake_system}"
+		cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
+
+		_exec curl --output cmake.tgz --location "${cmake_url}"
+		_exec tar xf cmake.tgz
+		_exec rm cmake.tgz
+		_exec mv "${cmake_dir}" /cmake
+		_exec ln -s /cmake/bin/cmake /usr/local/bin/cmake
+	fi
+fi

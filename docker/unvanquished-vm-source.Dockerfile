@@ -1,4 +1,4 @@
-FROM unvanquished-mingw-system
+FROM unvanquished-vm-system
 
 ARG reference
 
