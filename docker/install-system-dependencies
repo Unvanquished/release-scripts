@@ -70,16 +70,22 @@ game_toolchain_packages=(
 linux_generic_av_packages=(
 	libasound2-dev:native
 	libaudio-dev:native
+	libdecor-0-dev:native
+	libdrm-dev:native
+	libgbm-dev:native
 	libgl1-mesa-dev:native
  	libglu1-mesa-dev:native
 	libjack-jackd2-dev:native
 	libpipewire-0.3-dev:native
 	libpulse-dev:native
+	libusb-1.0-0-dev:native
+	libwayland-dev:native
 	libx11-dev:native
 	libxcursor-dev:native
 	libxext-dev:native
 	libxi-dev:native
 	libxinerama-dev:native
+	libxkbcommon-dev:native
 	libxrandr-dev:native
 	libxss-dev:native
 	libxxf86vm-dev:native
