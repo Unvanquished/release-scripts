@@ -511,7 +511,11 @@ build () {
 			engine_file_list="${engine_file_list} daemon daemonded daemon-tty crash_server nacl_helper_bootstrap nacl_loader"
 			engine_symbolize_list='daemon daemonded daemon-tty'
 			engine_strip_list='daemon daemonded daemon-tty crash_server'
-			if "${arch_i686}"
+			if "${arch_amd64}"
+			then
+				cmake_opts+=' -DCMAKE_C_COMPILER=x86_64-linux-gnu-gcc'
+				cmake_opts+=' -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++'
+			elif "${arch_i686}"
 			then
 				cmake_opts+=' -DCMAKE_C_COMPILER=i686-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=i686-linux-gnu-g++'
