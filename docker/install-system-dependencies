@@ -165,6 +165,48 @@ install_extra=(--verbose-versions --yes)
 
 _exec apt-get update
 
+_exec apt-get install "${install_extra[@]}" lsb-release
+
+# SDL3 asks for libdecor to make sure of always having a way
+# to render window decorations, but it is only available in
+# backports in Bullseye.
+# It's not a bad idea to rely on backports anyway, they provide
+# newer packages still retaining compatibility with the libc.
+distro_id="$(lsb_release --short --id 2>/dev/null)"
+distro_codename="$(lsb_release --short --codename 2>/dev/null)"
+
+has_backports='false'
+
+case "${distro_id}" in
+'Debian')
+	has_backports='true'
+
+	case "${distro_codename}" in
+		'bullseye')
+			archive_url='https://archive.debian.org/debian-archive/debian'
+			;;
+		*)
+			archive_url='http://deb.debian.org/debian'
+			;;
+		esac
+	;;
+'Ubuntu')
+	has_backports='true'
+	archive_url='http://archive.ubuntu.com/ubuntu'
+	;;
+esac
+
+if "${has_backports}"
+then
+	backports_suite="${distro_codename}-backports"
+	list_entry="deb ${archive_url} ${backports_suite} main"
+	list_file="/etc/apt/sources.list.d/${distro_id,,}-${distro_codename}-backports.list"
+	echo "${list_entry}" | _exec dd status=none of="${list_file}"
+	install_extra+=(--target-release "${backports_suite}")
+fi
+
+_exec apt-get update
+
 _exec apt-get install "${install_extra[@]}" "${system_packages[@]}"
 
 for alternative_pair in "${alternative_pairs[@]}"
