@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 RUN mkdir /docker
 COPY docker/common.sh /docker
