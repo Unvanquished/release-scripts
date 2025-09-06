@@ -74,7 +74,6 @@ linux_generic_av_packages=(
 	libdrm-dev:native
 	libgbm-dev:native
 	libgl1-mesa-dev:native
- 	libglu1-mesa-dev:native
 	libjack-jackd2-dev:native
 	libpipewire-0.3-dev:native
 	libpulse-dev:native
