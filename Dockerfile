@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim
+FROM docker.io/debian:bullseye-slim
 
 # Toolchain dependencies for Unvanquished, Daemon, external_deps, or build-release
 ENV TOOLCHAIN_DEPS=' \
