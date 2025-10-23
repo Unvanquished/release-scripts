@@ -1,4 +1,4 @@
-FROM debian:trixie-slim
+FROM docker.io/debian:trixie-slim
 
 RUN mkdir /docker
 COPY docker/common.sh /docker

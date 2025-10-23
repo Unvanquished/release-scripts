@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM docker.io/ubuntu:focal
 
 ARG build_macos=true
 

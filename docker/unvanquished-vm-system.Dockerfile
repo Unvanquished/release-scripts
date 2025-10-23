@@ -1,4 +1,4 @@
-FROM debian:trixie-slim
+FROM docker.io/debian:trixie-slim
 
 ARG build_vm=true
 
