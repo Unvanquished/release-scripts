@@ -29,6 +29,7 @@ set -e
 # error on undefined variable
 set -u
 
+# TODO: use a signal so this can actually exit from subshells?
 throwError () {
 	local error_keyword="${1}"
 	local error_message="${2}"
@@ -161,18 +162,31 @@ dumpSymbols () {
 }
 
 findDll () {
-	local mingw_arch="${1}"
-	local dll_name="${2}"
+	local mingw_compiler="${1}"
+	local dll="${2}"
 
-	if [ -z "${mingw_arch}" ]
+	# On Debian, --print-file-name works on DLLs. They live in multiple directories.
+	dll_path=$("${mingw_compiler}" --print-file-name "${dll}")
+	if [ -e "${dll_path}" ]
 	then
-		find "${MINGW_PREFIX}/bin/${dll_name}"
+		echo "${dll_path}"
 		return
 	fi
 
-	# HACK: sort to get posix flavor of libstdc++ before win32 flavor
-	find '/usr' -name "${dll_name}" -type f | sort | grep --max-count=1 "${mingw_arch}" \
-	|| throwError INTERNAL "couldn't find DLL ${dll_name}"
+	local test_dll=libstdc++-6.dll
+	local test_importlib=libstdc++.dll.a
+
+	# On MSYS, Arch or Fedora there are bin and lib sibling directories.
+	# *.dll is in bin and *.dll.a is in lib. All DLLs are in one place.
+	importlib_path=$("${mingw_compiler}" --print-file-name "${test_importlib}")
+	dll_path=$(echo "${importlib_path}" | sed -e "s!/lib/${test_importlib}\$!/bin!")
+	if [ -e "${dll_path}/${test_dll}" ]
+	then
+		echo "${dll_path}/${dll}"
+		return
+	fi
+
+	throwError INTERNAL "Can't find DLL path for compiler '${mingw_compiler}'"
 }
 
 cleanSymbols () {
@@ -500,7 +514,8 @@ build () {
 			fi
 
 			strip="${mingw_arch_prefix}-w64-mingw32-strip"
-			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${daemon_dir}/cmake/cross-toolchain-mingw${bitness}.cmake"
+			# The -DCMAKE_C_COMPILER= hack makes this variable be cached
+			cmake_opts="${cmake_opts} -DCMAKE_C_COMPILER= -DCMAKE_TOOLCHAIN_FILE=${daemon_dir}/cmake/cross-toolchain-mingw${bitness}.cmake"
 			# unused
 			# cmake_opts="${cmake_opts} -DPKG_CONFIG_EXECUTABLE=${mingw_arch_prefix}-w64-mingw32-pkg-config"
 		fi
@@ -549,21 +564,9 @@ build () {
 				special_dll='libgcc_s_seh-1.dll'
 			fi
 
-			extra_dll_list="${special_dll} libgomp-1.dll libstdc++-6.dll libwinpthread-1.dll libssp-0.dll"
-			# DLLs are added to engine_file_list after building
 			engine_file_list="${engine_file_list} daemon.exe daemonded.exe daemon-tty.exe crash_server.exe nacl_loader.exe"
 			engine_symbolize_list='daemon.exe daemonded.exe daemon-tty.exe'
 			engine_strip_list='daemon.exe daemonded.exe daemon-tty.exe crash_server.exe'
-
-			# those paths are distro-centric
-			# cp -av "/usr/${mingw_arch_prefix}-w64-mingw32/lib/libwinpthread-1.dll" "${target_build_dir}/"
-			# cp -av "/usr/lib/gcc/${mingw_arch_prefix}-w64-mingw32/7.3-posix/libstdc++-6.dll" "${target_build_dir}/"
-			# cp -av "/usr/lib/gcc/${mingw_arch_prefix}-w64-mingw32/7.3-posix/${special_dll}" "${target_build_dir}/"
-			for dll_name in ${extra_dll_list}
-			do
-				dll_location="$(findDll "${mingw_arch_prefix}" "${dll_name}")"
-				cp -av "${dll_location}" "${target_build_dir}/"
-			done
 		fi
 	fi
 
@@ -590,6 +593,21 @@ build () {
 			-D"CMAKE_EXE_LINKER_FLAGS=${cmake_cflags}" \
 			${cmake_opts} \
 		|| throwError INTERNAL "${target} cmake failed"
+
+		if "${system_windows}"
+		then
+			extra_dll_list="${special_dll} libgomp-1.dll libstdc++-6.dll libwinpthread-1.dll libssp-0.dll"
+			# DLLs are added to engine_file_list after building
+
+			local mingw_c_compiler=$(grep '^CMAKE_C_COMPILER:' "${target_build_dir}/CMakeCache.txt" \
+				| sed -E 's/^[^=]*=//')
+
+			for dll_name in ${extra_dll_list}
+			do
+				dll_location=$(findDll "${mingw_c_compiler}" "${dll_name}")
+				cp -av "${dll_location}" "${target_build_dir}/"
+			done
+		fi
 	fi
 
 	if "${build_vm}"
