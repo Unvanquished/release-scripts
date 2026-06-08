@@ -565,24 +565,6 @@ build () {
 				cp -av "${dll_location}" "${target_build_dir}/"
 			done
 		fi
-
-		local strip='strip'
-		if "${system_windows}" && ! "${host_windows}"
-		then
-			if "${arch_i686}"
-			then
-				bitness='32'
-				mingw_arch_prefix='i686'
-			else
-				bitness='64'
-				mingw_arch_prefix='x86_64'
-			fi
-
-			strip="${mingw_arch_prefix}-w64-mingw32-strip"
-			cmake_opts="${cmake_opts} -DCMAKE_TOOLCHAIN_FILE=${daemon_dir}/cmake/cross-toolchain-mingw${bitness}.cmake"
-			# unused
-			# cmake_opts="${cmake_opts} -DPKG_CONFIG_EXECUTABLE=${mingw_arch_prefix}-w64-mingw32-pkg-config"
-		fi
 	fi
 
 	if "${build_vm}"
