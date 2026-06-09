@@ -596,7 +596,7 @@ build () {
 
 		if "${system_windows}"
 		then
-			extra_dll_list="${special_dll} libgomp-1.dll libstdc++-6.dll libwinpthread-1.dll libssp-0.dll"
+			extra_dll_list="${special_dll} libgomp-1.dll libstdc++-6.dll libwinpthread-1.dll"
 			# DLLs are added to engine_file_list after building
 
 			local mingw_c_compiler=$(grep '^CMAKE_C_COMPILER:' "${target_build_dir}/CMakeCache.txt" \
@@ -607,6 +607,10 @@ build () {
 				dll_location=$(findDll "${mingw_c_compiler}" "${dll_name}")
 				cp -av "${dll_location}" "${target_build_dir}/"
 			done
+
+			# Tool, which will help us later
+			mingw_objdump=$("${mingw_c_compiler}" --print-prog-name objdump)
+			"${mingw_objdump}" --help > /dev/null
 		fi
 	fi
 
@@ -627,6 +631,12 @@ build () {
 
 		if "${system_windows}"
 		then
+			# Newer MinGW toolchains don't emit libssp dependencies
+			if "${mingw_objdump}" -p "${target_build_dir}/daemon.exe" | grep libssp-0.dll
+			then
+				dll_location=$(findDll "${mingw_c_compiler}" libssp-0.dll)
+				cp -av "${dll_location}" "${target_build_dir}/"
+			fi
 			engine_file_list="${engine_file_list} $(cd "${target_build_dir}" && ls *.dll)"
 		elif "${system_macos}"
 		then
