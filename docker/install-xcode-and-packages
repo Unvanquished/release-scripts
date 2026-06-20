@@ -14,8 +14,8 @@ _exec mv "${cmake_dir}/CMake.app/Contents" /cmake
 _exec rm -r "${cmake_dir}"
 _exec ln -s /cmake/bin/cmake /usr/bin/cmake
 
-sevenzip_version='2409'
-sevenzip_url="https://7-zip.org/a/7z${sevenzip_version}-mac.tar.xz"
+sevenzip_version='24.09'
+sevenzip_url="https://sourceforge.net/projects/sevenzip/files/7-Zip/${sevenzip_version}/7z${sevenzip_version//./}-mac.tar.xz"
 
 _exec curl --output /sevenzip.txz --location "${sevenzip_url}"
 _exec mkdir /sevenzip
