@@ -151,8 +151,6 @@ fi
 if "${build_macos}"
 then
 	build_in_darling='true'
-
-	system_packages+=(gdebi-core)
 fi
 
 if "${build_breakpad}"
@@ -233,11 +231,14 @@ if "${build_in_darling}"
 then
 	if [ ! -f /usr/bin/darling ]
 	then
-		darling_url='https://github.com/darlinghq/darling/releases/download/v0.1.20220929_update_sources_11_5/darling_0.1.20220929.focal_amd64.deb'
+		darling_url='https://github.com/darlinghq/darling/releases/download/v0.1.20260608/debs_20260608.zip'
+		darling_dir='/debs_20260609'
 
-		_exec curl --location --output /darling.deb "${darling_url}"
-		_exec gdebi --non-interactive /darling.deb
-		_exec rm /darling.deb
+		_exec curl --location --output /darling.zip "${darling_url}"
+		_exec unzip /darling.zip
+		_exec apt install -y "${darling_dir}/"*.deb
+		_exec rm /darling.zip
+		_exec rm -r "${darling_dir}"
 	fi
 fi
 
