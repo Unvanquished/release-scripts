@@ -385,7 +385,7 @@ build () {
 		'windows-'*)
 			build_engine='true'
 			system_windows='true'
-			dumpsyms_relpath=windows/dump_syms_dwarf/dump_syms
+			dumpsyms_relpath=windows/dump_syms_dwarf/dump_syms_dwarf
 			;;
 	esac
 
@@ -679,7 +679,7 @@ build () {
 			local make_targets=''
 			if "${host_windows}"
 			then
-				make_targets='src/tools/windows/dump_syms_dwarf/dump_syms.exe'
+				make_targets='src/tools/windows/dump_syms_dwarf/dump_syms_dwarf.exe'
 			fi
 			make -j"${job_count}" -C"${breakpad_dir}" $make_targets \
 			|| throwError INTERNAL 'breakpad build failed'
