@@ -142,23 +142,11 @@ getBinPath () {
 }
 
 dumpSymbols () {
-	local dumpsyms_bin="${1}"
-	local symbol_dir="${2}"
-	local exec_file="${3}"
+	local symbol_dir="${1}"
+	local exec_file="${2}"
 
-	local temp_file="$(mktemp)"
-
-	"${dumpsyms_bin}" "${exec_file}" > "${temp_file}"
-
-	local symbol_basename="$(head -n'1' "${temp_file}" | cut -f'5' -d' ')"
-
-	local build_id="$(head -n'1' "${temp_file}" | cut -f'4' -d' ')"
-
-	local exec_symbol_dir="${symbol_dir}/${symbol_basename}/${build_id}"
-
-	mkdir -pv "${exec_symbol_dir}"
-
-	mv "${temp_file}" "${exec_symbol_dir}/${symbol_basename}.sym"
+	mkdir -pv "${symbol_dir}"
+	"${breakpad_dir}/symbolize.py" --symbol-directory "${symbol_dir}" "${exec_file}"
 }
 
 findDll () {
@@ -716,7 +704,7 @@ build () {
 
 					ln -s "${vm_file}" 'main.nexe'
 
-					dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${main_nexe}"
+					dumpSymbols "${symbol_dir}" "${main_nexe}"
 
 					mkdir -pv "${content_dir}"
 
@@ -772,7 +760,7 @@ build () {
 			do
 				bin_path="${target_build_dir}/${bin}"
 				printf 'extracting symbols from %s\n' "${bin_path}"
-				dumpSymbols "${dumpsyms_bin}" "${symbol_dir}" "${bin_path}"
+				dumpSymbols "${symbol_dir}" "${bin_path}"
 			done
 		fi
 
