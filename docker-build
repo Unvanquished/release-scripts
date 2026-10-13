@@ -217,9 +217,12 @@ def main():
         # Clone source repositories.
         docker.run("build", ["unvanquished-mingw-source", reference_arg, engine_reference_arg])
 
+        # Download external dependencies.
+        docker.run("build", ["unvanquished-mingw-deps", targets_arg])
+
         # Build the targets.
         docker.run("mrun", ["--rm", targets_env,
-            "unvanquished-mingw-source", "/docker/build-targets"])
+            "unvanquished-mingw-deps", "/docker/build-targets"])
 
     if macos_target_list:
         targets_arg="--build-arg=targets={}".format(" ".join(macos_target_list))
@@ -274,9 +277,12 @@ def main():
         # Clone source repositories.
         docker.run("build", ["unvanquished-darling-source", reference_arg, engine_reference_arg])
 
+        # Download external dependencies.
+        docker.run("build", ["unvanquished-darling-deps", targets_arg])
+
         # Build the targets.
         docker.run("mrun", ["--privileged", "--rm", targets_env,
-            "unvanquished-darling-source", "/docker/build-targets"])
+            "unvanquished-darling-deps", "/docker/build-targets"])
 
     if vm_target_list:
         targets_arg="--build-arg=targets={}".format(" ".join(vm_target_list))
