@@ -50,7 +50,6 @@ system_packages=(
 # We removed the cmake package as it is installed from tarball.
 generic_toolchain_packages=(
 	autoconf
-	scons
 	libtool
 	make
 	pkg-config
