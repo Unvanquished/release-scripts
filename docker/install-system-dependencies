@@ -221,3 +221,6 @@ then
 		_exec ln -s /cmake/bin/cmake /usr/local/bin/cmake
 	fi
 fi
+
+_exec apt-get clean
+_exec rm -rf /var/lib/apt/lists/*
