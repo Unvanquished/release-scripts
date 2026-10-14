@@ -71,8 +71,8 @@ class Docker():
             error("Docker command is not set, this should not happen.")
 
         # Special keyword to do a “docker run” while
-        # mounting some folder from the host.
-        if command_name == "mrun":
+        # mounting some directory from the host.
+        if command_name.startswith("mrun-"):
             docker_command_name = "run"
         else:
             docker_command_name = command_name
@@ -89,7 +89,16 @@ class Docker():
                     "--file", "docker/{}.Dockerfile".format(docker_tag_name),
                     "--tag", "{}".format(docker_tag_name)])
 
-        elif command_name == "mrun":
+        if command_name == "mrun-local":
+            os.makedirs("local", exist_ok=True)
+
+            mount_string="type=bind,source={},destination={}".format(
+                os.path.realpath("local"),
+                "/local")
+
+            docker_command_list.extend(["--mount", mount_string])
+
+        elif command_name == "mrun-release":
             os.makedirs("build/release", exist_ok=True)
 
             mount_string="type=bind,source={},destination={}".format(
@@ -204,7 +213,7 @@ def main():
         docker.run("build", ["unvanquished-linux-deps", targets_arg])
 
         # Build the targets.
-        docker.run("mrun", ["--rm", targets_env,
+        docker.run("mrun-release", ["--rm", targets_env,
             "unvanquished-linux-deps", "/docker/build-targets"])
 
     if windows_target_list:
@@ -221,7 +230,7 @@ def main():
         docker.run("build", ["unvanquished-mingw-deps", targets_arg])
 
         # Build the targets.
-        docker.run("mrun", ["--rm", targets_env,
+        docker.run("mrun-release", ["--rm", targets_env,
             "unvanquished-mingw-deps", "/docker/build-targets"])
 
     if macos_target_list:
@@ -254,7 +263,7 @@ def main():
             # Install Xcode, Homebrew and dependencies in Darling.
             # Darling doesn't run on unprivileged Docker for now.
             # Docker doesn't allow privileged task on build step yet.
-            docker.run("run", ["--privileged",
+            docker.run("mrun-local", ["--privileged",
                 "unvanquished-darling-system", "/docker/install-darling-dependencies"])
 
             out, err = docker.run("ps", ["--all", "--format={{.ID}} {{.Image}}"],
@@ -281,7 +290,7 @@ def main():
         docker.run("build", ["unvanquished-darling-deps", targets_arg])
 
         # Build the targets.
-        docker.run("mrun", ["--privileged", "--rm", targets_env,
+        docker.run("mrun-release", ["--privileged", "--rm", targets_env,
             "unvanquished-darling-deps", "/docker/build-targets"])
 
     if vm_target_list:
@@ -295,7 +304,7 @@ def main():
         docker.run("build", ["unvanquished-vm-source", reference_arg, engine_reference_arg])
 
         # Build the targets.
-        docker.run("mrun", ["--rm", targets_env,
+        docker.run("mrun-release", ["--rm", targets_env,
             "unvanquished-vm-source", "/docker/build-targets"])
 
     if args.unizip:
@@ -303,14 +312,14 @@ def main():
         docker.run("build", ["unvanquished-unizip-system"])
 
         # Build the unizip.
-        docker.run("mrun", ["--rm", "unvanquished-unizip-system", "/docker/build-unizip"])
+        docker.run("mrun-release", ["--rm", "unvanquished-unizip-system", "/docker/build-unizip"])
 
     if args.chown:
         # Install Debian.
         docker.run("build", ["unvanquished-chown-system"])
 
         # Fix the ownership.
-        docker.run("mrun", ["--rm", "unvanquished-chown-system", "/docker/fix-ownership"])
+        docker.run("mrun-release", ["--rm", "unvanquished-chown-system", "/docker/fix-ownership"])
 
 if __name__ == "__main__":
     main()
