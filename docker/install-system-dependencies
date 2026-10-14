@@ -179,11 +179,11 @@ then
 	done
 fi
 
-install_extra=(--verbose-versions --yes)
-
 _exec apt-get update
 
-_exec apt-get install "${install_extra[@]}" "${system_packages[@]}"
+install_args=(--verbose-versions --yes)
+
+_exec apt-get install "${install_args[@]}" "${system_packages[@]}"
 
 for alternative_pair in "${alternative_pairs[@]}"
 do
