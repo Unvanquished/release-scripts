@@ -23,6 +23,12 @@ _exec tar -C /sevenzip -xf /sevenzip.txz
 _exec rm /sevenzip.txz
 _exec ln -s /sevenzip/7zz /usr/bin/7z
 
-echo 'y' | _exec xcode-select --install
+# This requires 7z to already be in PATH.
+_exec tools/macos-extract-clt-dmg.pl local/xcode/Command_Line_Tools_for_Xcode_14.3.1.dmg /tmp/clt
+_exec rm -rfv /Library/Developer/CommandLineTools
+_exec mv /tmp/clt/root/Library/Developer/CommandLineTools /Library/Developer/
+_exec rm -rf /tmp/clt
+_exec tools/macos-replace-clt.sh
+_exec tools/macos-set-clt-env.sh
 
 _exec touch /.dockerenv
