@@ -1,4 +1,4 @@
-FROM docker.io/debian:bullseye-slim
+FROM docker.io/debian:bookworm-slim
 
 ARG build_linux=true
 
