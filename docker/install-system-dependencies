@@ -159,6 +159,9 @@ if "${build_breakpad}"
 then
 	# The breakpad dump_syms binaries are built with the native g++.
 	system_packages+=(g++)
+
+	# Beware that it should not conflict with the Linux external_deps static zlib.
+	system_packages+=(zlib1g-dev)
 fi
 
 if "${build_linux}"
