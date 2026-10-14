@@ -208,7 +208,7 @@ if "${build_in_linux}"
 then
 	if [ ! -d /cmake ]
 	then
-		cmake_version='3.31.8'
+		cmake_version='3.31.12'
 		cmake_system='linux-x86_64'
 		cmake_dir="cmake-${cmake_version}-${cmake_system}"
 		cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
