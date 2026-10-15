@@ -33,15 +33,9 @@ throwError () {
 	local error_code
 
 	case "${error_keyword}" in
-		BADREQUEST)
-			error_code=2
-			;;
-		INTERNAL)
-			error_code=3
-			;;
-		NOTIMPLEMENTED)
-			error_code=4
-			;;
+		BADREQUEST) error_code=2;;
+		INTERNAL) error_code=3;;
+		NOTIMPLEMENTED) error_code=4;;
 	esac
 
 	printf 'ERROR %s: %s\n' "${error_keyword}" "${error_message}" >&2
