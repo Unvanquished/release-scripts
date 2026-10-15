@@ -49,69 +49,69 @@ throwError () {
 }
 
 printHelp () {
-	local prog_name="$(basename "${0}")"
-	local tab="$(printf '\t')"
+	local prog_name="$(basename "${BASH_SOURCE[0]}")"
 
-	cat <<-EOF
+	# Please align to 4-space tabs.
+	cat 2>&1 <<-EOF
 	${prog_name}: a tool to build game for release purpose.
 
 	Usage:
 
-	${tab}${prog_name} [option] <target>
+	    ${prog_name} [option] <target>
 
 	The script must be called within game source directory,
 	but can be called from anywhere in source directory.
 
 	Option can be:
 
-	${tab}-j<NUMBER>
-	${tab}${tab}with NUMBER the number of parallel compilation jobs
+	    -j<NUMBER>
+	        with NUMBER the number of parallel compilation jobs
 
-	${tab}-p
-	${tab}${tab}build multiple targets at once in parallel
-	${tab}${tab}beware: return code will be inaccurate
+	    -p
+	        build multiple targets at once in parallel
+	        beware: return code will be inaccurate
 
-	${tab}-u
-	${tab}${tab}write username in version string (requires -v)
+	    -u
+	        write username in version string (requires -v)
 
-	${tab}-v
-	${tab}${tab}write package version strings
+	    -v
+	        write package version strings
 
-	${tab}--vm-name <STRING>
-	${tab}${tab}use STRING as custom vm package basename
+	    --vm-name <STRING>
+	        use STRING as custom vm package basename
 
-	${tab}--vm-deps <STRING>
-	${tab}${tab}adds a DEPS file to the vm package using STRING as content
+	    --vm-deps <STRING>
+	        adds a DEPS file to the vm package using STRING as content
 
-	${tab}--build-dir <DIRECTORY>
-	${tab}${tab}write built files in DIRECTORY
+	    --build-dir <DIRECTORY>
+	        write built files in DIRECTORY
 
 	Target can be:
 
-	${tab}vm
-	${tab}${tab}build virtual machine
+	    vm
+	        build virtual machine
 
-	${tab}linux-amd64
-	${tab}${tab}build linux amd64 engine
+	    linux-amd64
+	        build linux amd64 engine
 
-	${tab}linux-armhf
-	${tab}${tab}build linux armhf engine
+	    linux-armhf
+	        build linux armhf engine
 
-	${tab}linux-arm64
-	${tab}${tab}build linux arm64 engine
+	    linux-arm64
+	        build linux arm64 engine
 
-	${tab}macos-amd64
-	${tab}${tab}build mac amd64 engine
+	    macos-amd64
+	        build mac amd64 engine
 
-	${tab}windows-amd64
-	${tab}${tab}build windows amd64 engine
+	    windows-amd64
+	        build windows amd64 engine
 
-	${tab}windows-i686
-	${tab}${tab}build windows i686 engine
+	    windows-i686
+	        build windows i686 engine
 
 	Example:
 
-	${tab}${prog_name} vm linux-amd64
+	    ${prog_name} vm linux-amd64
 
 	EOF
 
