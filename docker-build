@@ -39,6 +39,7 @@ known_target_list = [
     "windows-amd64",
     "windows-i686",
     "macos-amd64",
+    "macos-arm64",
     "vm",
 ]
 
