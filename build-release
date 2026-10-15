@@ -912,6 +912,5 @@ do
 		build "${job_count}" "${write_version_string}" "${write_username_string}" "${root_dir}" "${target}"
 	fi
 done
-wait
 
-#EOF
+wait
