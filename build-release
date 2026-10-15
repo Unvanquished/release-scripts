@@ -24,10 +24,7 @@
 #
 # ===========================================================================
 
-# exit in case of failure
-set -e
-# error on undefined variable
-set -u
+set -euo pipefail
 
 # TODO: use a signal so this can actually exit from subshells?
 throwError () {
