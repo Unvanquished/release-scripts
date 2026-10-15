@@ -36,13 +36,13 @@ throwError () {
 	local error_code
 
 	case "${error_keyword}" in
-		'BADREQUEST')
+		BADREQUEST)
 			error_code=2
 			;;
-		'INTERNAL')
+		INTERNAL)
 			error_code=3
 			;;
-		'NOTIMPLEMENTED')
+		NOTIMPLEMENTED)
 			error_code=4
 			;;
 	esac
@@ -356,21 +356,21 @@ build () {
 	local mingw_arch_prefix=''
 
 	case "${target}" in
-		'vm')
+		vm)
 			build_vm='true'
 			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
-		'linux-'*)
+		linux-*)
 			build_engine='true'
 			system_linux='true'
 			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
-		'macos-'*)
+		macos-*)
 			build_engine='true'
 			system_macos='true'
 			dumpsyms_relpath=mac/dump_syms/dump_syms_mac
 			;;
-		'windows-'*)
+		windows-*)
 			build_engine='true'
 			system_windows='true'
 			dumpsyms_relpath=windows/dump_syms_dwarf/dump_syms_dwarf
@@ -378,19 +378,19 @@ build () {
 	esac
 
 	case "${target}" in
-		*'-amd64')
+		*-amd64)
 			arch_amd64='true'
 			engine_file_list="${engine_file_list} irt_core-amd64.nexe"
 			;;
-		*'-i686')
+		*-i686)
 			arch_i686='true'
 			engine_file_list="${engine_file_list} irt_core-i686.nexe"
 			;;
-		*'-arm64')
+		*-arm64)
 			arch_arm64='true'
 			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
 			;;
-		*'-armhf')
+		*-armhf)
 			arch_armhf='true'
 			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
 			;;
@@ -404,13 +404,13 @@ build () {
 
 	local uname_system="$(uname -s)"
 	case "${uname_system}" in
-		'Linux'*)
+		Linux*)
 			host_linux='true'
 			;;
-		'Darwin'*)
+		Darwin*)
 			host_mac='true'
 			;;
-		'CYGWIN'*|'MINGW'*)
+		CYGWIN*|MINGW*)
 			host_windows='true'
 			;;
 		*)
@@ -834,34 +834,34 @@ vmpak_deps_content=''
 while [ -n "${1:-}" ]
 do
 	case "${1}" in
-	'vm'|'linux-amd64'|'linux-i686'|'linux-arm64'|'linux-armhf'|'macos-amd64'|'windows-amd64'|'windows-i686')
+		vm|linux-amd64|linux-i686|linux-arm64|linux-armhf|macos-amd64|windows-amd64|windows-i686)
 			target_list="${target_list} ${1}"
 			shift
 			;;
-		'macos-i686')
+		macos-i686)
 			throwError NOTIMPLEMENTED "unsupported target: ${1}"
 			;;
-		'-d')
+		-d)
 			set -x
 			shift
 			;;
-		'-j'*)
+		-j*)
 			job_count="${1:2}"
 			shift
 			;;
-		'-p')
+		-p)
 			parallel_target='true'
 			shift
 			;;
-		'-u')
+		-u)
 			write_username_string='true'
 			shift
 			;;
-		'-v')
+		-v)
 			write_version_string='true'
 			shift
 			;;
-		'--vm-name')
+		--vm-name)
 			shift
 			case "${1:-}" in
 				''|'-'*)
@@ -871,7 +871,7 @@ do
 			vmpak_basename="${1}"
 			shift
 			;;
-		'--vm-deps')
+		--vm-deps)
 			shift
 			case "${1:-}" in
 				''|'-'*)
@@ -881,7 +881,7 @@ do
 			vmpak_deps_content="${1}"
 			shift
 			;;
-		'--build-dir')
+		--build-dir)
 			shift
 			case "${1:-}" in
 				''|'-'*)
@@ -891,10 +891,10 @@ do
 			build_dir="$(realpath "${1}")"
 			shift
 			;;
-		'-h'|'--help')
+		-h|--help)
 			printHelp
 			;;
-		'-'*)
+		-*)
 			throwError BADREQUEST "unknown option: ${1}"
 			;;
 		*)
