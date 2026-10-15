@@ -97,6 +97,9 @@ printHelp () {
 	    macos-amd64
 	        build mac amd64 engine
 
+	    macos-arm64
+	        build mac arm64 engine
+
 	    windows-amd64
 	        build windows amd64 engine
 
@@ -377,9 +380,13 @@ build () {
 			arch_i686='true'
 			engine_file_list="${engine_file_list} irt_core-i686.nexe"
 			;;
-		*-arm64)
+		linux-arm64)
 			arch_arm64='true'
 			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
+			;;
+		macos-arm64)
+			arch_arm64='true'
+			engine_file_list="${engine_file_list} irt_core-amd64.nexe"
 			;;
 		*-armhf)
 			arch_armhf='true'
@@ -825,7 +832,7 @@ vmpak_deps_content=''
 while [ -n "${1:-}" ]
 do
 	case "${1}" in
-		vm|linux-amd64|linux-i686|linux-arm64|linux-armhf|macos-amd64|windows-amd64|windows-i686)
+		vm|linux-amd64|linux-i686|linux-arm64|linux-armhf|macos-amd64|macos-arm64|windows-amd64|windows-i686)
 			target_list="${target_list} ${1}"
 			shift
 			;;
