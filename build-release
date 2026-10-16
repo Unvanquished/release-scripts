@@ -374,23 +374,15 @@ build () {
 	case "${target}" in
 		*-amd64)
 			arch_amd64='true'
-			engine_file_list="${engine_file_list} irt_core-amd64.nexe"
 			;;
 		*-i686)
 			arch_i686='true'
-			engine_file_list="${engine_file_list} irt_core-i686.nexe"
 			;;
-		linux-arm64)
+		*-arm64)
 			arch_arm64='true'
-			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
-			;;
-		macos-arm64)
-			arch_arm64='true'
-			engine_file_list="${engine_file_list} irt_core-amd64.nexe"
 			;;
 		*-armhf)
 			arch_armhf='true'
-			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
 			;;
 	esac
 
@@ -509,24 +501,31 @@ build () {
 		if ${system_linux}
 		then
 			cmake_opts="${cmake_opts} -DUSE_STATIC_LIBS=ON -DPREFER_EXTERNAL_LIBS=OFF -DOpenGL_GL_PREFERENCE=LEGACY -DUSE_OPENMP=ON"
-			engine_file_list="${engine_file_list} daemon daemonded daemon-tty crash_server nacl_helper_bootstrap nacl_loader"
+			engine_file_list+=' daemon daemonded daemon-tty crash_server'
 			engine_symbolize_list='daemon daemonded daemon-tty'
 			engine_strip_list='daemon daemonded daemon-tty crash_server'
+
 			if "${arch_amd64}"
 			then
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
 				cmake_opts+=' -DCMAKE_C_COMPILER=x86_64-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++'
 			elif "${arch_i686}"
 			then
+				engine_file_list+=' nacl_loader-i686 nacl_helper_bootstrap-i686 irt_core-i686.nexe'
 				cmake_opts+=' -DCMAKE_C_COMPILER=i686-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=i686-linux-gnu-g++'
 			elif "${arch_arm64}"
 			then
-				engine_file_list+=" nacl_helper_bootstrap-armhf lib-armhf/ld-linux-armhf lib-armhf/libc.so.6 lib-armhf/libgcc_s.so.1 lib-armhf/libm.so.6 lib-armhf/libpthread.so.0 lib-armhf/librt.so.1 lib-armhf/libstdc++.so.6"
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
+				engine_file_list+=' box64'
+				engine_file_list+=' nacl_loader-armhf nacl_helper_bootstrap-armhf irt_core-armhf.nexe'
+				engine_file_list+=" lib-armhf/ld-linux-armhf lib-armhf/libc.so.6 lib-armhf/libgcc_s.so.1 lib-armhf/libm.so.6 lib-armhf/libpthread.so.0 lib-armhf/librt.so.1 lib-armhf/libstdc++.so.6"
 				cmake_opts+=' -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++'
 			elif "${arch_armhf}"
 			then
+				engine_file_list+=' nacl_loader-armhf nacl_helper_bootstrap-armhf irt_core-armhf.nexe'
 				cmake_opts+=' -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++'
 			fi
@@ -534,15 +533,18 @@ build () {
 
 		if "${system_macos}"
 		then
+			engine_file_list+=' daemon daemonded daemon-tty'
+
 			if "${arch_amd64}"
 			then
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
 				cmake_opts+=' -DCMAKE_OSX_ARCHITECTURES=amd64'
 			elif "${arch_arm64}"
 			then
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
 				cmake_opts+=' -DCMAKE_OSX_ARCHITECTURES=arm64'
 			fi
 
-			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader"
 			# No Breakpad, hence no symbolize and strip steps
 		fi
 
@@ -550,15 +552,20 @@ build () {
 		then
 			cmake_opts="${cmake_opts} -DUSE_OPENMP=ON"
 
-			if "${arch_i686}"
+			engine_file_list+=' daemon.exe daemonded.exe daemon-tty.exe crash_server.exe'
+
+			if "${arch_amd64}"
 			then
-				engine_file_list="${engine_file_list} nacl_loader-amd64.exe irt_core-amd64.nexe" # WOW64 support
-				special_dll='libgcc_s_dw2-1.dll'
-			else
+				engine_file_list+=' nacl_loader-amd64.exe irt_core-amd64.nexe'
 				special_dll='libgcc_s_seh-1.dll'
+			elif "${arch_i686}"
+			then
+				engine_file_list+=' nacl_loader-i686.exe irt_core-i686.nexe'
+				# WoW64 support
+				engine_file_list+=' nacl_loader-amd64.exe irt_core-amd64.nexe'
+				special_dll='libgcc_s_dw2-1.dll'
 			fi
 
-			engine_file_list="${engine_file_list} daemon.exe daemonded.exe daemon-tty.exe crash_server.exe nacl_loader.exe"
 			engine_symbolize_list='daemon.exe daemonded.exe daemon-tty.exe'
 			engine_strip_list='daemon.exe daemonded.exe daemon-tty.exe crash_server.exe'
 		fi
