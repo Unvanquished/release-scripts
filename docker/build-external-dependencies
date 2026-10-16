@@ -28,10 +28,10 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 cd '/Unvanquished/daemon/external_deps'
 
+# Building or downloading dependencies before the docker build step
+# makes the rebuild faster.
 for target in ${targets}
 do
-	# For other architectures, the downloadable deps archive contains
-	# everything required.
 	case "${target}" in
 	linux-*)
 		# We now rebuild as much as libraries as possible so we get the
@@ -41,6 +41,16 @@ do
 		# curl: Static libraries are configured with unneeded protocols
 		# that have extra dynamic dependencies.
 		_exec ./build.sh "${target}-default" all install
+		;;
+	# For other architectures, the downloadable deps archive contains
+	# everything required, already built.
+	macos-*)
+		# Darling 0.1.20260608 has a bug where CMake 3.28.6 builtin download
+		# doesn't work, so we should download them before-hand.
+		_exec ./build.sh "${target}-default" download
+		;;
+	windows-*)
+		_exec ./build.sh "${target}-mingw" download
 		;;
 	esac
 done

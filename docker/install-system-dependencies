@@ -50,7 +50,6 @@ system_packages=(
 # We removed the cmake package as it is installed from tarball.
 generic_toolchain_packages=(
 	autoconf
-	scons
 	libtool
 	make
 	pkg-config
@@ -77,6 +76,7 @@ linux_generic_av_packages=(
 	libjack-jackd2-dev:native
 	libpipewire-0.3-dev:native
 	libpulse-dev:native
+	libudev-dev:native
 	libusb-1.0-0-dev:native
 	libwayland-dev:native
 	libx11-dev:native
@@ -87,6 +87,7 @@ linux_generic_av_packages=(
 	libxkbcommon-dev:native
 	libxrandr-dev:native
 	libxss-dev:native
+	libxtst-dev:native
 	libxxf86vm-dev:native
 )
 
@@ -121,7 +122,7 @@ then
 	# The scons and clang packages are required for building the amd64 nacl loader.
 	system_packages+=(nasm scons clang)
 
-	# The no alias g++-x86-64-linux-gnu package on amd64 in Debian before
+	# There is no alias g++-x86-64-linux-gnu package on amd64 in Debian before
 	# Trixie, but we install g++ and we run on amd64 so this is fine.
 	system_packages+=(binutils-multiarch) 
 	# system_packages+=(g++-x86-64-linux-gnu)
@@ -151,14 +152,15 @@ fi
 if "${build_macos}"
 then
 	build_in_darling='true'
-
-	system_packages+=(gdebi-core)
 fi
 
 if "${build_breakpad}"
 then
 	# The breakpad dump_syms binaries are built with the native g++.
 	system_packages+=(g++)
+
+	# Beware that it should not conflict with the Linux external_deps static zlib.
+	system_packages+=(zlib1g-dev)
 fi
 
 if "${build_linux}"
@@ -176,53 +178,11 @@ then
 	done
 fi
 
-install_extra=(--verbose-versions --yes)
-
 _exec apt-get update
 
-_exec apt-get install "${install_extra[@]}" lsb-release
+install_args=(--verbose-versions --yes)
 
-# SDL3 asks for libdecor to make sure of always having a way
-# to render window decorations, but it is only available in
-# backports in Bullseye.
-# It's not a bad idea to rely on backports anyway, they provide
-# newer packages still retaining compatibility with the libc.
-distro_id="$(lsb_release --short --id 2>/dev/null)"
-distro_codename="$(lsb_release --short --codename 2>/dev/null)"
-
-has_backports='false'
-
-case "${distro_id}" in
-'Debian')
-	has_backports='true'
-
-	case "${distro_codename}" in
-		'bullseye')
-			archive_url='https://archive.debian.org/debian-archive/debian'
-			;;
-		*)
-			archive_url='http://deb.debian.org/debian'
-			;;
-		esac
-	;;
-'Ubuntu')
-	has_backports='true'
-	archive_url='http://archive.ubuntu.com/ubuntu'
-	;;
-esac
-
-if "${has_backports}"
-then
-	backports_suite="${distro_codename}-backports"
-	list_entry="deb ${archive_url} ${backports_suite} main"
-	list_file="/etc/apt/sources.list.d/${distro_id,,}-${distro_codename}-backports.list"
-	echo "${list_entry}" | _exec dd status=none of="${list_file}"
-	install_extra+=(--target-release "${backports_suite}")
-fi
-
-_exec apt-get update
-
-_exec apt-get install "${install_extra[@]}" "${system_packages[@]}"
+_exec apt-get install "${install_args[@]}" "${system_packages[@]}"
 
 for alternative_pair in "${alternative_pairs[@]}"
 do
@@ -233,11 +193,14 @@ if "${build_in_darling}"
 then
 	if [ ! -f /usr/bin/darling ]
 	then
-		darling_url='https://github.com/darlinghq/darling/releases/download/v0.1.20220929_update_sources_11_5/darling_0.1.20220929.focal_amd64.deb'
+		darling_url='https://github.com/darlinghq/darling/releases/download/v0.1.20260608/debs_20260608.zip'
+		darling_dir='/debs_20260609'
 
-		_exec curl --location --output /darling.deb "${darling_url}"
-		_exec gdebi --non-interactive /darling.deb
-		_exec rm /darling.deb
+		_exec curl --location --output /darling.zip "${darling_url}"
+		_exec unzip /darling.zip
+		_exec apt install -y "${darling_dir}/"*.deb
+		_exec rm /darling.zip
+		_exec rm -r "${darling_dir}"
 	fi
 fi
 
@@ -245,7 +208,7 @@ if "${build_in_linux}"
 then
 	if [ ! -d /cmake ]
 	then
-		cmake_version='3.31.8'
+		cmake_version='3.31.12'
 		cmake_system='linux-x86_64'
 		cmake_dir="cmake-${cmake_version}-${cmake_system}"
 		cmake_url="https://github.com/Kitware/CMake/releases/download/v${cmake_version}/${cmake_dir}.tar.gz"
@@ -257,3 +220,6 @@ then
 		_exec ln -s /cmake/bin/cmake /usr/local/bin/cmake
 	fi
 fi
+
+_exec apt-get clean
+_exec rm -rf /var/lib/apt/lists/*

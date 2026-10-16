@@ -24,10 +24,7 @@
 #
 # ===========================================================================
 
-# exit in case of failure
-set -e
-# error on undefined variable
-set -u
+set -euo pipefail
 
 # TODO: use a signal so this can actually exit from subshells?
 throwError () {
@@ -36,15 +33,9 @@ throwError () {
 	local error_code
 
 	case "${error_keyword}" in
-		'BADREQUEST')
-			error_code=2
-			;;
-		'INTERNAL')
-			error_code=3
-			;;
-		'NOTIMPLEMENTED')
-			error_code=4
-			;;
+		BADREQUEST) error_code=2;;
+		INTERNAL) error_code=3;;
+		NOTIMPLEMENTED) error_code=4;;
 	esac
 
 	printf 'ERROR %s: %s\n' "${error_keyword}" "${error_message}" >&2
@@ -52,69 +43,72 @@ throwError () {
 }
 
 printHelp () {
-	local prog_name="$(basename "${0}")"
-	local tab="$(printf '\t')"
+	local prog_name="$(basename "${BASH_SOURCE[0]}")"
 
-	cat <<-EOF
+	# Please align to 4-space tabs.
+	cat 2>&1 <<-EOF
 	${prog_name}: a tool to build game for release purpose.
 
 	Usage:
 
-	${tab}${prog_name} [option] <target>
+	    ${prog_name} [option] <target>
 
 	The script must be called within game source directory,
 	but can be called from anywhere in source directory.
 
 	Option can be:
 
-	${tab}-j<NUMBER>
-	${tab}${tab}with NUMBER the number of parallel compilation jobs
+	    -j<NUMBER>
+	        with NUMBER the number of parallel compilation jobs
 
-	${tab}-p
-	${tab}${tab}build multiple targets at once in parallel
-	${tab}${tab}beware: return code will be inaccurate
+	    -p
+	        build multiple targets at once in parallel
+	        beware: return code will be inaccurate
 
-	${tab}-u
-	${tab}${tab}write username in version string (requires -v)
+	    -u
+	        write username in version string (requires -v)
 
-	${tab}-v
-	${tab}${tab}write package version strings
+	    -v
+	        write package version strings
 
-	${tab}--vm-name <STRING>
-	${tab}${tab}use STRING as custom vm package basename
+	    --vm-name <STRING>
+	        use STRING as custom vm package basename
 
-	${tab}--vm-deps <STRING>
-	${tab}${tab}adds a DEPS file to the vm package using STRING as content
+	    --vm-deps <STRING>
+	        adds a DEPS file to the vm package using STRING as content
 
-	${tab}--build-dir <DIRECTORY>
-	${tab}${tab}write built files in DIRECTORY
+	    --build-dir <DIRECTORY>
+	        write built files in DIRECTORY
 
 	Target can be:
 
-	${tab}vm
-	${tab}${tab}build virtual machine
+	    vm
+	        build virtual machine
 
-	${tab}linux-amd64
-	${tab}${tab}build linux amd64 engine
+	    linux-amd64
+	        build linux amd64 engine
 
-	${tab}linux-armhf
-	${tab}${tab}build linux armhf engine
+	    linux-armhf
+	        build linux armhf engine
 
-	${tab}linux-arm64
-	${tab}${tab}build linux arm64 engine
+	    linux-arm64
+	        build linux arm64 engine
 
-	${tab}macos-amd64
-	${tab}${tab}build mac amd64 engine
+	    macos-amd64
+	        build mac amd64 engine
 
-	${tab}windows-amd64
-	${tab}${tab}build windows amd64 engine
+	    macos-arm64
+	        build mac arm64 engine
 
-	${tab}windows-i686
-	${tab}${tab}build windows i686 engine
+	    windows-amd64
+	        build windows amd64 engine
+
+	    windows-i686
+	        build windows i686 engine
 
 	Example:
 
-	${tab}${prog_name} vm linux-amd64
+	    ${prog_name} vm linux-amd64
 
 	EOF
 
@@ -356,21 +350,21 @@ build () {
 	local mingw_arch_prefix=''
 
 	case "${target}" in
-		'vm')
+		vm)
 			build_vm='true'
 			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
-		'linux-'*)
+		linux-*)
 			build_engine='true'
 			system_linux='true'
 			dumpsyms_relpath=linux/dump_syms/dump_syms
 			;;
-		'macos-'*)
+		macos-*)
 			build_engine='true'
 			system_macos='true'
 			dumpsyms_relpath=mac/dump_syms/dump_syms_mac
 			;;
-		'windows-'*)
+		windows-*)
 			build_engine='true'
 			system_windows='true'
 			dumpsyms_relpath=windows/dump_syms_dwarf/dump_syms_dwarf
@@ -378,21 +372,17 @@ build () {
 	esac
 
 	case "${target}" in
-		*'-amd64')
+		*-amd64)
 			arch_amd64='true'
-			engine_file_list="${engine_file_list} irt_core-amd64.nexe"
 			;;
-		*'-i686')
+		*-i686)
 			arch_i686='true'
-			engine_file_list="${engine_file_list} irt_core-i686.nexe"
 			;;
-		*'-arm64')
+		*-arm64)
 			arch_arm64='true'
-			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
 			;;
-		*'-armhf')
+		*-armhf)
 			arch_armhf='true'
-			engine_file_list="${engine_file_list} irt_core-armhf.nexe"
 			;;
 	esac
 
@@ -404,13 +394,13 @@ build () {
 
 	local uname_system="$(uname -s)"
 	case "${uname_system}" in
-		'Linux'*)
+		Linux*)
 			host_linux='true'
 			;;
-		'Darwin'*)
+		Darwin*)
 			host_mac='true'
 			;;
-		'CYGWIN'*|'MINGW'*)
+		CYGWIN*|MINGW*)
 			host_windows='true'
 			;;
 		*)
@@ -511,24 +501,31 @@ build () {
 		if ${system_linux}
 		then
 			cmake_opts="${cmake_opts} -DUSE_STATIC_LIBS=ON -DPREFER_EXTERNAL_LIBS=OFF -DOpenGL_GL_PREFERENCE=LEGACY -DUSE_OPENMP=ON"
-			engine_file_list="${engine_file_list} daemon daemonded daemon-tty crash_server nacl_helper_bootstrap nacl_loader"
+			engine_file_list+=' daemon daemonded daemon-tty crash_server'
 			engine_symbolize_list='daemon daemonded daemon-tty'
 			engine_strip_list='daemon daemonded daemon-tty crash_server'
+
 			if "${arch_amd64}"
 			then
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
 				cmake_opts+=' -DCMAKE_C_COMPILER=x86_64-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++'
 			elif "${arch_i686}"
 			then
+				engine_file_list+=' nacl_loader-i686 nacl_helper_bootstrap-i686 irt_core-i686.nexe'
 				cmake_opts+=' -DCMAKE_C_COMPILER=i686-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=i686-linux-gnu-g++'
 			elif "${arch_arm64}"
 			then
-				engine_file_list+=" nacl_helper_bootstrap-armhf lib-armhf/ld-linux-armhf lib-armhf/libc.so.6 lib-armhf/libgcc_s.so.1 lib-armhf/libm.so.6 lib-armhf/libpthread.so.0 lib-armhf/librt.so.1 lib-armhf/libstdc++.so.6"
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
+				engine_file_list+=' box64'
+				engine_file_list+=' nacl_loader-armhf nacl_helper_bootstrap-armhf irt_core-armhf.nexe'
+				engine_file_list+=" lib-armhf/ld-linux-armhf lib-armhf/libc.so.6 lib-armhf/libgcc_s.so.1 lib-armhf/libm.so.6 lib-armhf/libpthread.so.0 lib-armhf/librt.so.1 lib-armhf/libstdc++.so.6"
 				cmake_opts+=' -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++'
 			elif "${arch_armhf}"
 			then
+				engine_file_list+=' nacl_loader-armhf nacl_helper_bootstrap-armhf irt_core-armhf.nexe'
 				cmake_opts+=' -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++'
 			fi
@@ -536,7 +533,18 @@ build () {
 
 		if "${system_macos}"
 		then
-			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader"
+			engine_file_list+=' daemon daemonded daemon-tty'
+
+			if "${arch_amd64}"
+			then
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
+				cmake_opts+=' -DCMAKE_OSX_ARCHITECTURES=amd64'
+			elif "${arch_arm64}"
+			then
+				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
+				cmake_opts+=' -DCMAKE_OSX_ARCHITECTURES=arm64'
+			fi
+
 			# No Breakpad, hence no symbolize and strip steps
 		fi
 
@@ -544,15 +552,19 @@ build () {
 		then
 			cmake_opts="${cmake_opts} -DUSE_OPENMP=ON"
 
-			if "${arch_i686}"
+			engine_file_list+=' daemon.exe daemonded.exe daemon-tty.exe crash_server.exe'
+
+			if "${arch_amd64}"
 			then
-				engine_file_list="${engine_file_list} nacl_loader-amd64.exe irt_core-amd64.nexe" # WOW64 support
-				special_dll='libgcc_s_dw2-1.dll'
-			else
+				engine_file_list+=' nacl_loader-amd64.exe irt_core-amd64.nexe'
 				special_dll='libgcc_s_seh-1.dll'
+			elif "${arch_i686}"
+			then
+				engine_file_list+=' nacl_loader-i686.exe irt_core-i686.nexe'
+				engine_file_list+=' nacl_loader-amd64.exe irt_core-amd64.nexe' # WOW64 support
+				special_dll='libgcc_s_dw2-1.dll'
 			fi
 
-			engine_file_list="${engine_file_list} daemon.exe daemonded.exe daemon-tty.exe crash_server.exe nacl_loader.exe"
 			engine_symbolize_list='daemon.exe daemonded.exe daemon-tty.exe'
 			engine_strip_list='daemon.exe daemonded.exe daemon-tty.exe crash_server.exe'
 		fi
@@ -834,34 +846,34 @@ vmpak_deps_content=''
 while [ -n "${1:-}" ]
 do
 	case "${1}" in
-	'vm'|'linux-amd64'|'linux-i686'|'linux-arm64'|'linux-armhf'|'macos-amd64'|'windows-amd64'|'windows-i686')
+		vm|linux-amd64|linux-i686|linux-arm64|linux-armhf|macos-amd64|macos-arm64|windows-amd64|windows-i686)
 			target_list="${target_list} ${1}"
 			shift
 			;;
-		'macos-i686')
+		macos-i686)
 			throwError NOTIMPLEMENTED "unsupported target: ${1}"
 			;;
-		'-d')
+		-d)
 			set -x
 			shift
 			;;
-		'-j'*)
+		-j*)
 			job_count="${1:2}"
 			shift
 			;;
-		'-p')
+		-p)
 			parallel_target='true'
 			shift
 			;;
-		'-u')
+		-u)
 			write_username_string='true'
 			shift
 			;;
-		'-v')
+		-v)
 			write_version_string='true'
 			shift
 			;;
-		'--vm-name')
+		--vm-name)
 			shift
 			case "${1:-}" in
 				''|'-'*)
@@ -871,7 +883,7 @@ do
 			vmpak_basename="${1}"
 			shift
 			;;
-		'--vm-deps')
+		--vm-deps)
 			shift
 			case "${1:-}" in
 				''|'-'*)
@@ -881,7 +893,7 @@ do
 			vmpak_deps_content="${1}"
 			shift
 			;;
-		'--build-dir')
+		--build-dir)
 			shift
 			case "${1:-}" in
 				''|'-'*)
@@ -891,10 +903,10 @@ do
 			build_dir="$(realpath "${1}")"
 			shift
 			;;
-		'-h'|'--help')
+		-h|--help)
 			printHelp
 			;;
-		'-'*)
+		-*)
 			throwError BADREQUEST "unknown option: ${1}"
 			;;
 		*)
@@ -912,6 +924,5 @@ do
 		build "${job_count}" "${write_version_string}" "${write_username_string}" "${root_dir}" "${target}"
 	fi
 done
-wait
 
-#EOF
+wait
