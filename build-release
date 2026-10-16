@@ -534,6 +534,14 @@ build () {
 
 		if "${system_macos}"
 		then
+			if "${arch_amd64}"
+			then
+				cmake_opts+=' -DCMAKE_OSX_ARCHITECTURES=amd64'
+			elif "${arch_arm64}"
+			then
+				cmake_opts+=' -DCMAKE_OSX_ARCHITECTURES=arm64'
+			fi
+
 			engine_file_list="${engine_file_list} daemon daemonded daemon-tty nacl_loader"
 			# No Breakpad, hence no symbolize and strip steps
 		fi
