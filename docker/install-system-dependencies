@@ -124,6 +124,9 @@ then
 	# The scons and clang packages are required for building the amd64 nacl loader.
 	system_packages+=(scons clang)
 
+	# The patchelf package is required for patching the multiarch armhf nacl loader.
+	system_packages+=(patchelf)
+
 	# There is no alias g++-x86-64-linux-gnu package on amd64 in Debian before
 	# Trixie, but we install g++ and we run on amd64 so this is fine.
 	system_packages+=(binutils-multiarch) 
