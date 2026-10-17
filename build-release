@@ -520,7 +520,7 @@ build () {
 				engine_file_list+=' nacl_loader-amd64 irt_core-amd64.nexe'
 				engine_file_list+=' box64'
 				engine_file_list+=' nacl_loader-armhf nacl_helper_bootstrap-armhf irt_core-armhf.nexe'
-				engine_file_list+=" lib-armhf/ld-linux-armhf lib-armhf/libc.so.6 lib-armhf/libgcc_s.so.1 lib-armhf/libm.so.6 lib-armhf/libpthread.so.0 lib-armhf/librt.so.1 lib-armhf/libstdc++.so.6"
+				engine_file_list+=" lib-linux-armhf/ld-linux-armhf.so.3 lib-linux-armhf/libc.so.6 lib-linux-armhf/libgcc_s.so.1 lib-linux-armhf/libm.so.6 lib-linux-armhf/libpthread.so.0 lib-linux-armhf/librt.so.1 lib-linux-armhf/libstdc++.so.6"
 				cmake_opts+=' -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc'
 				cmake_opts+=' -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++'
 			elif "${arch_armhf}"
